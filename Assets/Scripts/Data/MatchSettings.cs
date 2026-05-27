@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "MatchConfigData", menuName = "Ajedrez/Configuracion de Partida")]
+[CreateAssetMenu(fileName = "NewMatchSettings", menuName = "Chess/Match Settings")]
 public class MatchConfig : ScriptableObject
 {
     [Header("Modo de Juego")]
