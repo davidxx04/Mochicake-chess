@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic; // Necesario para usar List<>
 
 public class BoardView : MonoBehaviour
 {
@@ -15,11 +16,11 @@ public class BoardView : MonoBehaviour
     public Color darkSquareColor = new Color(0.3f, 0.5f, 0.3f);
 
     [Header("Interacción Visual")]
-    public Color highlightColor = new Color(0.4f, 0.8f, 0.4f); // clean green
+    public Color highlightColor = new Color(0.4f, 0.8f, 0.4f); // Verde para la pieza seleccionada
+    public Color validMoveColor = new Color(0.4f, 0.7f, 0.9f); // Azulito para a dónde puede ir
 
     private GameObject[,] visualSquares = new GameObject[8, 8];
 
-    // called by the controller who gives us the model information
     public void InitializeView(BoardModel model)
     {
         DrawBoard();
@@ -45,7 +46,7 @@ public class BoardView : MonoBehaviour
                 sr.color = isLightSquare ? lightSquareColor : darkSquareColor;
 
                 square.name = $"Square_{x}_{y}";
-                visualSquares[x, y] = square;
+                visualSquares[x, y] = square; // Guardamos la referencia para iluminarla luego
             }
         }
     }
@@ -77,10 +78,21 @@ public class BoardView : MonoBehaviour
         }
     }
 
+    // --- NUEVOS MÉTODOS DE ILUMINACIÓN ---
+
     public void HighlightSquare(int logicalX, int logicalY)
     {
         SpriteRenderer sr = visualSquares[logicalX, logicalY].GetComponent<SpriteRenderer>();
         sr.color = highlightColor;
+    }
+
+    public void HighlightValidMoves(List<Vector2Int> validMoves)
+    {
+        foreach (Vector2Int move in validMoves)
+        {
+            SpriteRenderer sr = visualSquares[move.x, move.y].GetComponent<SpriteRenderer>();
+            sr.color = validMoveColor;
+        }
     }
 
     public void ResetAllSquareColors()
