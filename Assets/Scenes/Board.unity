@@ -276,6 +276,50 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   m_MaxRayIntersections: 0
+--- !u!1 &956433501
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 956433503}
+  - component: {fileID: 956433502}
+  m_Layer: 0
+  m_Name: TurnManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &956433502
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 956433501}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd33d4c288df2594498cf9fdcf0a0710, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!4 &956433503
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 956433501}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 548.3186, y: 1123.1211, z: -6.1505423}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1388226466
 GameObject:
   m_ObjectHideFlags: 0
@@ -393,8 +437,8 @@ MonoBehaviour:
   piecePrefab: {fileID: 2159174731579593609, guid: 1c2bcd43d2859a54c9e7b5e74c64df41, type: 3}
   matchConfig: {fileID: 11400000, guid: 954c25d13c513bb47ab94fcef551ef53, type: 2}
   pieceTheme: {fileID: 11400000, guid: 0cf2272e28de2d54e8ab063fb8a04dad, type: 2}
-  lightSquareColor: {r: 0.9, g: 0.9, b: 0.8, a: 1}
-  darkSquareColor: {r: 0.3, g: 0.5, b: 0.3, a: 1}
+  highlightColor: {r: 0.4, g: 0.8, b: 0.4, a: 0.8}
+  validMoveColor: {r: 0.4, g: 0.7, b: 0.9, a: 0.8}
 --- !u!4 &1560130395
 Transform:
   m_ObjectHideFlags: 0
@@ -440,6 +484,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   boardView: {fileID: 1560130394}
+  turnManager: {fileID: 0}
 --- !u!4 &1771266713
 Transform:
   m_ObjectHideFlags: 0
@@ -463,3 +508,4 @@ SceneRoots:
   - {fileID: 1560130395}
   - {fileID: 1388226468}
   - {fileID: 1771266713}
+  - {fileID: 956433503}

@@ -8,13 +8,19 @@ public class MatchController : MonoBehaviour
 
     private BoardModel logicalBoard;
 
-    // --- Memoria del Árbitro ---
     private LogicalPiece selectedPiece = null;
     private int selectedX = -1;
     private int selectedY = -1;
 
+    // El "dibujado" de la cámara (perspectiva fija)
+    private bool isWhitePlayer;
+
+    // NUEVO: La memoria del turno actual
+    private TeamColor currentTurn = TeamColor.White;
+
     private void Start()
     {
+        isWhitePlayer = boardView.matchConfig.isPlayingWhite;
         logicalBoard = new BoardModel();
         logicalBoard.SetupClassicBoard();
         boardView.InitializeView(logicalBoard);
@@ -30,6 +36,69 @@ public class MatchController : MonoBehaviour
 
     private void HandleClick()
     {
+        if (TryGetClickedSquare(out int logicalX, out int logicalY))
+        {
+            LogicalPiece clickedPiece = logicalBoard.grid[logicalX, logicalY];
+
+            // EL CAMBIO CLAVE: Ya no miramos nuestro color fijo, miramos de quién es el turno
+            ProcessSelectionAndMove(clickedPiece, logicalX, logicalY, currentTurn);
+        }
+    }
+
+    private void ProcessSelectionAndMove(LogicalPiece clickedPiece, int logicalX, int logicalY, TeamColor activeColor)
+    {
+        // 1. Tocar una pieza del equipo al que le toca jugar
+        if (clickedPiece != null && clickedPiece.team == activeColor)
+        {
+            SelectPiece(clickedPiece, logicalX, logicalY);
+        }
+        // 2. Intentar mover la pieza seleccionada
+        else if (selectedPiece != null)
+        {
+            TryExecuteMove(logicalX, logicalY);
+        }
+    }
+
+    private void SelectPiece(LogicalPiece piece, int x, int y)
+    {
+        boardView.ResetAllSquareColors();
+        selectedPiece = piece;
+        selectedX = x;
+        selectedY = y;
+
+        boardView.HighlightSquare(x, y);
+
+        List<Vector2Int> validMoves = MovementLogic.GetValidMoves(logicalBoard, x, y);
+        boardView.HighlightValidMoves(validMoves);
+    }
+
+    private void TryExecuteMove(int targetX, int targetY)
+    {
+        List<Vector2Int> validMoves = MovementLogic.GetValidMoves(logicalBoard, selectedX, selectedY);
+        Vector2Int targetMove = new Vector2Int(targetX, targetY);
+
+        if (validMoves.Contains(targetMove))
+        {
+            logicalBoard.grid[targetX, targetY] = selectedPiece;
+            logicalBoard.grid[selectedX, selectedY] = null;
+
+            boardView.UpdateVisualPiece(selectedX, selectedY, targetX, targetY);
+
+            // NUEVO: ¡La jugada fue un éxito! Pasamos el turno al rival.
+            currentTurn = (currentTurn == TeamColor.White) ? TeamColor.Black : TeamColor.White;
+        }
+
+        selectedPiece = null;
+        selectedX = -1;
+        selectedY = -1;
+        boardView.ResetAllSquareColors();
+    }
+
+    private bool TryGetClickedSquare(out int logicalX, out int logicalY)
+    {
+        logicalX = -1;
+        logicalY = -1;
+
         Vector2 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         RaycastHit2D hit = Physics2D.Raycast(mouseWorldPos, Vector2.zero);
 
@@ -41,56 +110,11 @@ public class MatchController : MonoBehaviour
             int visualX = Mathf.RoundToInt(clickedX + 3.5f);
             int visualY = Mathf.RoundToInt(clickedY + 3.5f);
 
-            bool isWhite = boardView.matchConfig.isPlayingWhite;
-            int logicalX = isWhite ? visualX : 7 - visualX;
-            int logicalY = isWhite ? visualY : 7 - visualY;
-
-            LogicalPiece clickedPiece = logicalBoard.grid[logicalX, logicalY];
-            TeamColor myColor = isWhite ? TeamColor.White : TeamColor.Black;
-
-            // Llamamos a nuestra nueva función ultra-limpia
-            ProcessSelectionAndMove(clickedPiece, logicalX, logicalY, myColor);
+            logicalX = isWhitePlayer ? visualX : 7 - visualX;
+            logicalY = isWhitePlayer ? visualY : 7 - visualY;
+            return true;
         }
-    }
 
-    // --- LA MEJORA QUE HAS SUGERIDO ---
-    private void ProcessSelectionAndMove(LogicalPiece clickedPiece, int logicalX, int logicalY, TeamColor myColor)
-    {
-        // 1. Toco una pieza de mi equipo -> Seleccionar (da igual si tenía otra antes)
-        if (clickedPiece != null && clickedPiece.team == myColor)
-        {
-            boardView.ResetAllSquareColors(); // Limpiamos por si había algo seleccionado antes
-            SelectPiece(clickedPiece, logicalX, logicalY);
-        }
-        // 2. Toco otra cosa Y ADEMÁS tengo una pieza en la mano -> Intentar mover
-        else if (selectedPiece != null)
-        {
-            Debug.Log($"¡Moviendo {selectedPiece.type} de [{selectedX}, {selectedY}] a [{logicalX}, {logicalY}]!");
-
-            // TODO: Validación real y ejecución del movimiento
-
-            selectedPiece = null;
-            selectedX = -1;
-            selectedY = -1;
-            boardView.ResetAllSquareColors();
-        }
-        // 3. (Implícito) Si toco una casilla vacía o enemiga pero NO tengo pieza seleccionada... no hace nada.
-    }
-
-    private void SelectPiece(LogicalPiece piece, int x, int y)
-    {
-        selectedPiece = piece;
-        selectedX = x;
-        selectedY = y;
-
-        boardView.HighlightSquare(x, y);
-
-        List<Vector2Int> validMoves = GetValidMoves(piece, x, y);
-        boardView.HighlightValidMoves(validMoves);
-    }
-
-    private List<Vector2Int> GetValidMoves(LogicalPiece piece, int currentX, int currentY)
-    {
-        return MovementLogic.GetValidMoves(logicalBoard, currentX, currentY);
+        return false;
     }
 }
