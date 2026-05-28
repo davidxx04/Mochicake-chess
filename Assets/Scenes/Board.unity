@@ -484,7 +484,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   boardView: {fileID: 1560130394}
-  turnManager: {fileID: 0}
+  turnManager: {fileID: 956433502}
 --- !u!4 &1771266713
 Transform:
   m_ObjectHideFlags: 0

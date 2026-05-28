@@ -5,6 +5,7 @@ public class MatchController : MonoBehaviour
 {
     [Header("Referencias")]
     public BoardView boardView;
+    public TurnManager turnManager; // <-- Conectamos al relojero
 
     private BoardModel logicalBoard;
 
@@ -12,26 +13,44 @@ public class MatchController : MonoBehaviour
     private int selectedX = -1;
     private int selectedY = -1;
 
-    // El "dibujado" de la cámara (perspectiva fija)
+    // Variables cacheadas al inicio (Tu mejora aplicada aquí)
     private bool isWhitePlayer;
-
-    // NUEVO: La memoria del turno actual
-    private TeamColor currentTurn = TeamColor.White;
+    private bool isVsComputer;
 
     private void Start()
     {
+        // 1. Guardamos la configuración una sola vez
         isWhitePlayer = boardView.matchConfig.isPlayingWhite;
+        isVsComputer = boardView.matchConfig.isVsComputer;
+
+        // 2. Inicializamos el tablero
         logicalBoard = new BoardModel();
         logicalBoard.SetupClassicBoard();
         boardView.InitializeView(logicalBoard);
+
+        // 3. Arrancamos los turnos usando el manager externo
+        turnManager.StartMatch();
     }
 
     private void Update()
     {
-        if (Input.GetMouseButtonDown(0))
+        // Consultamos la función protectora antes de procesar clics
+        if (Input.GetMouseButtonDown(0) && IsHumanTurn())
         {
             HandleClick();
         }
+    }
+
+    // --- PROTECCIÓN DE INTERACCIÓN ---
+    private bool IsHumanTurn()
+    {
+        // Si no jugamos contra la máquina (Pass & Play local), siempre devolvemos true
+        if (!isVsComputer)
+            return true;
+
+        // Si jugamos contra la máquina, solo devolvemos true si nos toca a nosotros
+        TeamColor myColor = isWhitePlayer ? TeamColor.White : TeamColor.Black;
+        return turnManager.currentTurn == myColor;
     }
 
     private void HandleClick()
@@ -40,19 +59,17 @@ public class MatchController : MonoBehaviour
         {
             LogicalPiece clickedPiece = logicalBoard.grid[logicalX, logicalY];
 
-            // EL CAMBIO CLAVE: Ya no miramos nuestro color fijo, miramos de quién es el turno
-            ProcessSelectionAndMove(clickedPiece, logicalX, logicalY, currentTurn);
+            // Pasamos el turno que nos dicta el TurnManager
+            ProcessSelectionAndMove(clickedPiece, logicalX, logicalY, turnManager.currentTurn);
         }
     }
 
     private void ProcessSelectionAndMove(LogicalPiece clickedPiece, int logicalX, int logicalY, TeamColor activeColor)
     {
-        // 1. Tocar una pieza del equipo al que le toca jugar
         if (clickedPiece != null && clickedPiece.team == activeColor)
         {
             SelectPiece(clickedPiece, logicalX, logicalY);
         }
-        // 2. Intentar mover la pieza seleccionada
         else if (selectedPiece != null)
         {
             TryExecuteMove(logicalX, logicalY);
@@ -84,8 +101,8 @@ public class MatchController : MonoBehaviour
 
             boardView.UpdateVisualPiece(selectedX, selectedY, targetX, targetY);
 
-            // NUEVO: ¡La jugada fue un éxito! Pasamos el turno al rival.
-            currentTurn = (currentTurn == TeamColor.White) ? TeamColor.Black : TeamColor.White;
+            // La jugada es válida, ordenamos al Manager que cambie el turno
+            turnManager.PassTurn();
         }
 
         selectedPiece = null;
