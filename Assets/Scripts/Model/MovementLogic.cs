@@ -155,6 +155,7 @@ public static class MovementLogic
                         pseudoMoves.Add(new Vector2Int(targetX, targetY));
                     }
                 }
+                pseudoMoves.AddRange(GetCastlingMoves(board, piece, startX, startY));
                 break;
 
             case PieceType.Pawn:
@@ -391,5 +392,62 @@ public static class MovementLogic
             return IsSquareUnderAttack(board, kingPos.x, kingPos.y, kingColor);
         }
         return false;
+    }
+
+    // ==============================================================================
+    // --- LÓGICA DE ENROQUE (Helpers Limpios) ---
+    // ==============================================================================
+
+    private static List<Vector2Int> GetCastlingMoves(BoardModel board, LogicalPiece king, int startX, int startY)
+    {
+        List<Vector2Int> castlingMoves = new List<Vector2Int>();
+
+        // Regla 1 y 3: El rey no puede haberse movido, ni puede estar en Jaque para poder enrocar.
+        if (king.hasMoved) return castlingMoves;
+        if (IsSquareUnderAttack(board, startX, startY, king.team)) return castlingMoves;
+
+        // Intentamos el Enroque Corto (Hacia la derecha, Torre en X=7)
+        if (CanCastleKingside(board, king.team, startY))
+        {
+            castlingMoves.Add(new Vector2Int(startX + 2, startY));
+        }
+
+        // Intentamos el Enroque Largo (Hacia la izquierda, Torre en X=0)
+        if (CanCastleQueenside(board, king.team, startY))
+        {
+            castlingMoves.Add(new Vector2Int(startX - 2, startY));
+        }
+
+        return castlingMoves;
+    }
+
+    private static bool CanCastleKingside(BoardModel board, TeamColor team, int y)
+    {
+        LogicalPiece rook = board.grid[7, y];
+        // ¿Hay una torre sana en su sitio?
+        if (rook == null || rook.type != PieceType.Rook || rook.team != team || rook.hasMoved) return false;
+
+        // ¿Las casillas intermedias están vacías? (X=5 y X=6)
+        if (board.grid[5, y] != null || board.grid[6, y] != null) return false;
+
+        // ¿Alguna de esas casillas está bajo el fuego enemigo?
+        if (IsSquareUnderAttack(board, 5, y, team) || IsSquareUnderAttack(board, 6, y, team)) return false;
+
+        return true;
+    }
+
+    private static bool CanCastleQueenside(BoardModel board, TeamColor team, int y)
+    {
+        LogicalPiece rook = board.grid[0, y];
+        // ¿Hay una torre sana en su sitio?
+        if (rook == null || rook.type != PieceType.Rook || rook.team != team || rook.hasMoved) return false;
+
+        // ¿Las casillas intermedias están vacías? (X=1, X=2 y X=3)
+        if (board.grid[1, y] != null || board.grid[2, y] != null || board.grid[3, y] != null) return false;
+
+        // El Rey pasa por X=3 y X=2 (No hace falta mirar X=1 para los jaques según las reglas)
+        if (IsSquareUnderAttack(board, 2, y, team) || IsSquareUnderAttack(board, 3, y, team)) return false;
+
+        return true;
     }
 }

@@ -99,15 +99,17 @@ public class MatchController : MonoBehaviour
         {
             selectedPiece.hasMoved = true;
 
+            // ¡NUEVO! Detectamos y movemos la Torre si resulta que la jugada era un Enroque
+            ProcessCastlingRook(selectedX, selectedY, targetX);
+
+            // Movemos la pieza principal (El Rey, u otra pieza si no era enroque)
             logicalBoard.grid[targetX, targetY] = selectedPiece;
             logicalBoard.grid[selectedX, selectedY] = null;
 
             boardView.UpdateVisualPiece(selectedX, selectedY, targetX, targetY, selectedPiece);
 
-            // COMPROBAMOS LA PROMOCIÓN CON NUESTRA NUEVA FUNCIÓN
             if (CheckPromotion(selectedPiece, targetY))
             {
-                // Entramos en modo pausa. Activamos UI y guardamos datos.
                 isWaitingForPromotion = true;
                 pieceToPromote = selectedPiece;
                 promoX = targetX;
@@ -116,7 +118,6 @@ public class MatchController : MonoBehaviour
             }
             else
             {
-                // Si no hay promoción, procesamos victoria y pasamos turno normalmente
                 CheckGameEndAndPassTurn();
             }
         }
@@ -126,6 +127,7 @@ public class MatchController : MonoBehaviour
         selectedY = -1;
         boardView.ResetAllSquareColors();
     }
+
 
     // --- LA FUNCIÓN LIMPIA DE COMPROBACIÓN ---
     private bool CheckPromotion(LogicalPiece piece, int targetY)
@@ -207,5 +209,31 @@ public class MatchController : MonoBehaviour
             return true;
         }
         return false;
+    }
+
+    // --- LÓGICA DE ENROQUE VISUAL Y LÓGICO ---
+    private void ProcessCastlingRook(int startX, int startY, int targetX)
+    {
+        // Sabemos que es un enroque si movemos un Rey y el salto es de 2 casillas (Mathf.Abs calcula la distancia absoluta)
+        bool isCastling = selectedPiece.type == PieceType.King && Mathf.Abs(startX - targetX) == 2;
+        if (!isCastling) return;
+
+        // Si salta a la derecha, la torre está en 7. Si salta a la izquierda, la torre está en 0.
+        int rookStartX = (targetX > startX) ? 7 : 0;
+
+        // La torre aterriza al lado opuesto del Rey (El Rey va al 6, la Torre al 5)
+        int rookTargetX = (targetX > startX) ? targetX - 1 : targetX + 1;
+
+        LogicalPiece rook = logicalBoard.grid[rookStartX, startY];
+        rook.hasMoved = true;
+
+        // Movemos la Torre lógicamente
+        logicalBoard.grid[rookTargetX, startY] = rook;
+        logicalBoard.grid[rookStartX, startY] = null;
+
+        // Movemos la Torre visualmente (Sin promoción, así que el disfraz es el mismo)
+        boardView.UpdateVisualPiece(rookStartX, startY, rookTargetX, startY, rook);
+
+        Debug.Log("¡Enroque ejecutado!");
     }
 }
