@@ -89,10 +89,29 @@ public class MatchController : MonoBehaviour
 
         if (validMoves.Contains(targetMove))
         {
+            // ==========================================
+            // --- NUEVO: MEMORIA Y PROMOCIÓN ---
+            // ==========================================
+            selectedPiece.hasMoved = true; // El Árbitro anota que esta pieza ya no es virgen
+
+            if (selectedPiece.type == PieceType.Pawn)
+            {
+                int promotionRow = (selectedPiece.team == TeamColor.White) ? 7 : 0;
+                if (targetY == promotionRow)
+                {
+                    selectedPiece.type = PieceType.Queen; // ¡Mutación a Reina!
+                    Debug.Log("¡Peón coronado a Reina!");
+                }
+            }
+            // ==========================================
+
             logicalBoard.grid[targetX, targetY] = selectedPiece;
             logicalBoard.grid[selectedX, selectedY] = null;
 
-            boardView.UpdateVisualPiece(selectedX, selectedY, targetX, targetY);
+            // FÍJATE AQUÍ: Le pasamos 'selectedPiece' al final de la función
+            boardView.UpdateVisualPiece(selectedX, selectedY, targetX, targetY, selectedPiece);
+
+            // ... (Aquí sigue tu código de EL VEREDICTO FINAL)
 
             // ==========================================
             // --- EL VEREDICTO FINAL ---

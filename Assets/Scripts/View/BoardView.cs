@@ -97,7 +97,7 @@ public class BoardView : MonoBehaviour
         }
     }
 
-    public void UpdateVisualPiece(int startX, int startY, int targetX, int targetY)
+    public void UpdateVisualPiece(int startX, int startY, int targetX, int targetY, LogicalPiece logicalPiece)
     {
         if (visualPieces[targetX, targetY] != null)
         {
@@ -108,8 +108,11 @@ public class BoardView : MonoBehaviour
         visualPieces[targetX, targetY] = movingPiece;
         visualPieces[startX, startY] = null;
 
-        // Uso del Helper para mover físicamente la pieza
         movingPiece.transform.position = GetRealWorldPosition(targetX, targetY);
+
+        // NUEVO: Le volvemos a poner el disfraz por si ha cambiado de Peón a Reina
+        SpriteRenderer sr = movingPiece.GetComponent<SpriteRenderer>();
+        sr.sprite = pieceTheme.GetSprite(logicalPiece.type, logicalPiece.team);
     }
 
     // --- HELPER METODS (DRY) ---
