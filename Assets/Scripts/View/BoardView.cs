@@ -99,22 +99,29 @@ public class BoardView : MonoBehaviour
 
     public void UpdateVisualPiece(int startX, int startY, int targetX, int targetY, LogicalPiece logicalPiece)
     {
-        if (visualPieces[targetX, targetY] != null)
+        // 1. Solo hacemos la lógica de movimiento y destrucción si la pieza realmente cambia de casilla
+        if (startX != targetX || startY != targetY)
         {
-            Destroy(visualPieces[targetX, targetY]);
+            if (visualPieces[targetX, targetY] != null)
+            {
+                Destroy(visualPieces[targetX, targetY]);
+            }
+
+            GameObject movingPiece = visualPieces[startX, startY];
+            visualPieces[targetX, targetY] = movingPiece;
+            visualPieces[startX, startY] = null;
+
+            movingPiece.transform.position = GetRealWorldPosition(targetX, targetY);
         }
 
-        GameObject movingPiece = visualPieces[startX, startY];
-        visualPieces[targetX, targetY] = movingPiece;
-        visualPieces[startX, startY] = null;
-
-        movingPiece.transform.position = GetRealWorldPosition(targetX, targetY);
-
-        // NUEVO: Le volvemos a poner el disfraz por si ha cambiado de Peón a Reina
-        SpriteRenderer sr = movingPiece.GetComponent<SpriteRenderer>();
-        sr.sprite = pieceTheme.GetSprite(logicalPiece.type, logicalPiece.team);
+        // 2. Pase lo que pase (se haya movido o solo haya promocionado en el sitio), 
+        // le actualizamos el disfraz a la pieza que está en el destino.
+        if (visualPieces[targetX, targetY] != null)
+        {
+            SpriteRenderer sr = visualPieces[targetX, targetY].GetComponent<SpriteRenderer>();
+            sr.sprite = pieceTheme.GetSprite(logicalPiece.type, logicalPiece.team);
+        }
     }
-
     // --- HELPER METODS (DRY) ---
 
     // Este método concentra todas las matemáticas de rotación y centrado de la cámara

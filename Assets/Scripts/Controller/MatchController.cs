@@ -7,14 +7,22 @@ public class MatchController : MonoBehaviour
     public BoardView boardView;
     public TurnManager turnManager;
 
-    private BoardModel logicalBoard;
+    [Header("UI Promoción")]
+    public GameObject promotionUI;
 
+    private BoardModel logicalBoard;
     private LogicalPiece selectedPiece = null;
     private int selectedX = -1;
     private int selectedY = -1;
 
     private bool isWhitePlayer;
     private bool isVsComputer;
+
+    // --- NUEVO: Estado de Promoción ---
+    private bool isWaitingForPromotion = false;
+    private LogicalPiece pieceToPromote = null;
+    private int promoX = -1;
+    private int promoY = -1;
 
     private void Start()
     {
@@ -25,12 +33,15 @@ public class MatchController : MonoBehaviour
         logicalBoard.SetupClassicBoard();
         boardView.InitializeView(logicalBoard);
 
+        if (promotionUI != null) promotionUI.SetActive(false);
+
         turnManager.StartMatch();
     }
 
     private void Update()
     {
-        if (Input.GetMouseButtonDown(0) && IsHumanTurn())
+        // Bloqueamos el clic en el tablero si el juego terminó o si estamos esperando a que elijas pieza
+        if (Input.GetMouseButtonDown(0) && IsHumanTurn() && !isWaitingForPromotion)
         {
             HandleClick();
         }
@@ -38,10 +49,7 @@ public class MatchController : MonoBehaviour
 
     private bool IsHumanTurn()
     {
-        // 1. Si el juego ya ha terminado, bloqueamos los clics
         if (turnManager.isGameOver) return false;
-
-        // 2. Comprobaciones de IA (Lo que ya teníamos)
         if (!isVsComputer) return true;
 
         TeamColor myColor = isWhitePlayer ? TeamColor.White : TeamColor.Black;
@@ -89,65 +97,93 @@ public class MatchController : MonoBehaviour
 
         if (validMoves.Contains(targetMove))
         {
-            // ==========================================
-            // --- NUEVO: MEMORIA Y PROMOCIÓN ---
-            // ==========================================
-            selectedPiece.hasMoved = true; // El Árbitro anota que esta pieza ya no es virgen
-
-            if (selectedPiece.type == PieceType.Pawn)
-            {
-                int promotionRow = (selectedPiece.team == TeamColor.White) ? 7 : 0;
-                if (targetY == promotionRow)
-                {
-                    selectedPiece.type = PieceType.Queen; // ¡Mutación a Reina!
-                    Debug.Log("¡Peón coronado a Reina!");
-                }
-            }
-            // ==========================================
+            selectedPiece.hasMoved = true;
 
             logicalBoard.grid[targetX, targetY] = selectedPiece;
             logicalBoard.grid[selectedX, selectedY] = null;
 
-            // FÍJATE AQUÍ: Le pasamos 'selectedPiece' al final de la función
             boardView.UpdateVisualPiece(selectedX, selectedY, targetX, targetY, selectedPiece);
 
-            // ... (Aquí sigue tu código de EL VEREDICTO FINAL)
-
-            // ==========================================
-            // --- EL VEREDICTO FINAL ---
-            // ==========================================
-
-            TeamColor nextColor = (turnManager.currentTurn == TeamColor.White) ? TeamColor.Black : TeamColor.White;
-
-            // Preguntamos al Cerebro: ¿El SIGUIENTE jugador tiene algún movimiento legal?
-            bool enemyHasMoves = MovementLogic.HasAnyValidMove(logicalBoard, nextColor);
-
-            if (!enemyHasMoves)
+            // COMPROBAMOS LA PROMOCIÓN CON NUESTRA NUEVA FUNCIÓN
+            if (CheckPromotion(selectedPiece, targetY))
             {
-                // El enemigo no puede moverse. ¿Es porque está en Jaque?
-                if (MovementLogic.IsKingInCheck(logicalBoard, nextColor))
-                {
-                    // Jaque Mate: Gana el turno actual
-                    turnManager.DeclareCheckmate(turnManager.currentTurn);
-                }
-                else
-                {
-                    // Rey Ahogado: Nadie gana
-                    turnManager.DeclareStalemate();
-                }
+                // Entramos en modo pausa. Activamos UI y guardamos datos.
+                isWaitingForPromotion = true;
+                pieceToPromote = selectedPiece;
+                promoX = targetX;
+                promoY = targetY;
+                promotionUI.SetActive(true);
             }
             else
             {
-                // El enemigo puede moverse. La partida continúa normalmente.
-                turnManager.PassTurn();
+                // Si no hay promoción, procesamos victoria y pasamos turno normalmente
+                CheckGameEndAndPassTurn();
             }
-            // ==========================================
         }
 
         selectedPiece = null;
         selectedX = -1;
         selectedY = -1;
         boardView.ResetAllSquareColors();
+    }
+
+    // --- LA FUNCIÓN LIMPIA DE COMPROBACIÓN ---
+    private bool CheckPromotion(LogicalPiece piece, int targetY)
+    {
+        if (piece.type == PieceType.Pawn)
+        {
+            int promotionRow = (piece.team == TeamColor.White) ? 7 : 0;
+            return targetY == promotionRow;
+        }
+        return false;
+    }
+
+    // --- LA FUNCIÓN QUE LLAMAN LOS BOTONES DE LA UI ---
+    // Recibimos un string ("Queen", "Rook"...) para que sea súper fácil configurarlo en los botones de Unity
+    public void CompletePromotion(string pieceTypeString)
+    {
+        PieceType chosenType = PieceType.Queen; // Por defecto
+
+        switch (pieceTypeString)
+        {
+            case "Queen": chosenType = PieceType.Queen; break;
+            case "Rook": chosenType = PieceType.Rook; break;
+            case "Bishop": chosenType = PieceType.Bishop; break;
+            case "Knight": chosenType = PieceType.Knight; break;
+        }
+
+        // 1. Mutamos la pieza
+        pieceToPromote.type = chosenType;
+
+        // 2. Le pedimos a la Vista que le ponga el disfraz de la nueva pieza (mismo origen y destino)
+        boardView.UpdateVisualPiece(promoX, promoY, promoX, promoY, pieceToPromote);
+
+        // 3. Apagamos la UI y quitamos la pausa
+        promotionUI.SetActive(false);
+        isWaitingForPromotion = false;
+        pieceToPromote = null;
+
+        // 4. Ahora sí, el movimiento ha terminado: verificamos jaques y pasamos turno
+        CheckGameEndAndPassTurn();
+    }
+
+    // --- EL VEREDICTO FINAL EXTRAÍDO ---
+    private void CheckGameEndAndPassTurn()
+    {
+        TeamColor nextColor = (turnManager.currentTurn == TeamColor.White) ? TeamColor.Black : TeamColor.White;
+        bool enemyHasMoves = MovementLogic.HasAnyValidMove(logicalBoard, nextColor);
+
+        if (!enemyHasMoves)
+        {
+            if (MovementLogic.IsKingInCheck(logicalBoard, nextColor))
+                turnManager.DeclareCheckmate(turnManager.currentTurn);
+            else
+                turnManager.DeclareStalemate();
+        }
+        else
+        {
+            turnManager.PassTurn();
+        }
     }
 
     private bool TryGetClickedSquare(out int logicalX, out int logicalY)
@@ -170,7 +206,6 @@ public class MatchController : MonoBehaviour
             logicalY = isWhitePlayer ? visualY : 7 - visualY;
             return true;
         }
-
         return false;
     }
 }
