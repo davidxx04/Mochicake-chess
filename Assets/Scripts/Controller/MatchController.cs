@@ -5,7 +5,7 @@ public class MatchController : MonoBehaviour
 {
     [Header("Referencias")]
     public BoardView boardView;
-    public TurnManager turnManager; // <-- Conectamos al relojero
+    public TurnManager turnManager;
 
     private BoardModel logicalBoard;
 
@@ -13,42 +13,37 @@ public class MatchController : MonoBehaviour
     private int selectedX = -1;
     private int selectedY = -1;
 
-    // Variables cacheadas al inicio (Tu mejora aplicada aquí)
     private bool isWhitePlayer;
     private bool isVsComputer;
 
     private void Start()
     {
-        // 1. Guardamos la configuración una sola vez
         isWhitePlayer = boardView.matchConfig.isPlayingWhite;
         isVsComputer = boardView.matchConfig.isVsComputer;
 
-        // 2. Inicializamos el tablero
         logicalBoard = new BoardModel();
         logicalBoard.SetupClassicBoard();
         boardView.InitializeView(logicalBoard);
 
-        // 3. Arrancamos los turnos usando el manager externo
         turnManager.StartMatch();
     }
 
     private void Update()
     {
-        // Consultamos la función protectora antes de procesar clics
         if (Input.GetMouseButtonDown(0) && IsHumanTurn())
         {
             HandleClick();
         }
     }
 
-    // --- PROTECCIÓN DE INTERACCIÓN ---
     private bool IsHumanTurn()
     {
-        // Si no jugamos contra la máquina (Pass & Play local), siempre devolvemos true
-        if (!isVsComputer)
-            return true;
+        // 1. Si el juego ya ha terminado, bloqueamos los clics
+        if (turnManager.isGameOver) return false;
 
-        // Si jugamos contra la máquina, solo devolvemos true si nos toca a nosotros
+        // 2. Comprobaciones de IA (Lo que ya teníamos)
+        if (!isVsComputer) return true;
+
         TeamColor myColor = isWhitePlayer ? TeamColor.White : TeamColor.Black;
         return turnManager.currentTurn == myColor;
     }
@@ -58,8 +53,6 @@ public class MatchController : MonoBehaviour
         if (TryGetClickedSquare(out int logicalX, out int logicalY))
         {
             LogicalPiece clickedPiece = logicalBoard.grid[logicalX, logicalY];
-
-            // Pasamos el turno que nos dicta el TurnManager
             ProcessSelectionAndMove(clickedPiece, logicalX, logicalY, turnManager.currentTurn);
         }
     }
@@ -101,8 +94,35 @@ public class MatchController : MonoBehaviour
 
             boardView.UpdateVisualPiece(selectedX, selectedY, targetX, targetY);
 
-            // La jugada es válida, ordenamos al Manager que cambie el turno
-            turnManager.PassTurn();
+            // ==========================================
+            // --- EL VEREDICTO FINAL ---
+            // ==========================================
+
+            TeamColor nextColor = (turnManager.currentTurn == TeamColor.White) ? TeamColor.Black : TeamColor.White;
+
+            // Preguntamos al Cerebro: ¿El SIGUIENTE jugador tiene algún movimiento legal?
+            bool enemyHasMoves = MovementLogic.HasAnyValidMove(logicalBoard, nextColor);
+
+            if (!enemyHasMoves)
+            {
+                // El enemigo no puede moverse. ¿Es porque está en Jaque?
+                if (MovementLogic.IsKingInCheck(logicalBoard, nextColor))
+                {
+                    // Jaque Mate: Gana el turno actual
+                    turnManager.DeclareCheckmate(turnManager.currentTurn);
+                }
+                else
+                {
+                    // Rey Ahogado: Nadie gana
+                    turnManager.DeclareStalemate();
+                }
+            }
+            else
+            {
+                // El enemigo puede moverse. La partida continúa normalmente.
+                turnManager.PassTurn();
+            }
+            // ==========================================
         }
 
         selectedPiece = null;
