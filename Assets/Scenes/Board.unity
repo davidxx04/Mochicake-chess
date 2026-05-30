@@ -1399,6 +1399,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1771266713}
   - component: {fileID: 1771266712}
+  - component: {fileID: 1771266714}
   m_Layer: 0
   m_Name: MatchController
   m_TagString: Untagged
@@ -1420,6 +1421,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   boardView: {fileID: 1560130394}
   turnManager: {fileID: 956433502}
+  aiController: {fileID: 1771266714}
   promotionUI: {fileID: 2074523411}
 --- !u!4 &1771266713
 Transform:
@@ -1436,6 +1438,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1771266714
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1771266711}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82f01b8ce453aea4c882ddf113d750ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  matchController: {fileID: 1771266712}
+  searchDepth: 4
 --- !u!1 &1919824506
 GameObject:
   m_ObjectHideFlags: 0

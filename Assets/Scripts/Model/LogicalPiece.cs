@@ -10,4 +10,8 @@ public class LogicalPiece
         type = pieceType;
     }
 
+    public LogicalPiece Clone()
+    {
+        return new LogicalPiece(team, type) { hasMoved = hasMoved };
+    }
 }

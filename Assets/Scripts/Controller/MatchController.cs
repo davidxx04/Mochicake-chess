@@ -6,6 +6,7 @@ public class MatchController : MonoBehaviour
     [Header("Referencias")]
     public BoardView boardView;
     public TurnManager turnManager;
+    public AIController aiController;
 
     [Header("UI Promocion")]
     public GameObject promotionUI;
@@ -17,11 +18,18 @@ public class MatchController : MonoBehaviour
 
     private bool isWhitePlayer;
     private bool isVsComputer;
+    private bool isAiThinking;
 
     private bool isWaitingForPromotion = false;
     private LogicalPiece pieceToPromote = null;
     private int promoX = -1;
     private int promoY = -1;
+
+    private void Awake()
+    {
+        if (aiController == null)
+            aiController = GetComponent<AIController>();
+    }
 
     private void Start()
     {
@@ -35,6 +43,7 @@ public class MatchController : MonoBehaviour
         if (promotionUI != null) promotionUI.SetActive(false);
 
         turnManager.StartMatch();
+        TryStartAiTurn();
     }
 
     private void Update()
@@ -43,9 +52,53 @@ public class MatchController : MonoBehaviour
             HandleClick();
     }
 
+    public bool IsVsComputerActive() => isVsComputer;
+
+    public void SetAiThinking(bool thinking) => isAiThinking = thinking;
+
+    public TeamColor GetAiTeam()
+    {
+        return isWhitePlayer ? TeamColor.Black : TeamColor.White;
+    }
+
+    public BoardModel CloneBoard() => logicalBoard.Clone();
+
+    public bool ShouldApplyAiMove(TeamColor aiColor)
+    {
+        return isVsComputer
+            && !turnManager.isGameOver
+            && turnManager.currentTurn == aiColor;
+    }
+
+    public void ApplyAiMove(SearchResult result)
+    {
+        if (!ShouldApplyAiMove(GetAiTeam()))
+            return;
+
+        List<Move> validMoves = MovementLogic.GetValidMoves(logicalBoard, result.fromX, result.fromY);
+        Move chosen = validMoves.Find(m => m.MatchesDestination(result.toX, result.toY));
+
+        if (chosen == null)
+        {
+            Debug.LogWarning($"[MatchController] IA eligió ({result.fromX},{result.fromY})->({result.toX},{result.toY}) pero no coincide con un movimiento legal.");
+            return;
+        }
+
+        bool requiresPromotion = chosen.Execute(logicalBoard, boardView);
+
+        if (requiresPromotion)
+        {
+            chosen.pieceToMove.type = PieceType.Queen;
+            boardView.UpdateVisualPiece(result.toX, result.toY, result.toX, result.toY, chosen.pieceToMove);
+        }
+
+        CheckGameEndAndPassTurn();
+    }
+
     private bool IsHumanTurn()
     {
         if (turnManager.isGameOver) return false;
+        if (isAiThinking) return false;
         if (!isVsComputer) return true;
 
         TeamColor myColor = isWhitePlayer ? TeamColor.White : TeamColor.Black;
@@ -153,7 +206,18 @@ public class MatchController : MonoBehaviour
         else
         {
             turnManager.PassTurn();
+            TryStartAiTurn();
         }
+    }
+
+    private void TryStartAiTurn()
+    {
+        if (!isVsComputer || turnManager.isGameOver || aiController == null)
+            return;
+
+        TeamColor aiColor = GetAiTeam();
+        if (turnManager.currentTurn == aiColor)
+            aiController.RequestMove(aiColor);
     }
 
     private bool TryGetClickedSquare(out int logicalX, out int logicalY)

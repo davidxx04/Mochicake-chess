@@ -6,6 +6,10 @@ public abstract class Move
     public LogicalPiece pieceToMove;
 
     protected LogicalPiece capturedAtTarget;
+    protected Vector2Int savedEnPassantTarget;
+    protected bool savedMoverHasMoved;
+    protected bool savedCapturedHasMoved;
+    protected bool hadCapturedPiece;
 
     public Move(LogicalPiece piece, int sX, int sY, int tX, int tY)
     {
@@ -21,8 +25,31 @@ public abstract class Move
     public abstract void ApplyLogic(BoardModel board);
     public abstract void UndoLogic(BoardModel board);
 
-    /// <returns>True if the arbiter must pause for promotion UI.</returns>
     public abstract bool Execute(BoardModel board, BoardView view);
+
+    protected void BeginApply(BoardModel board)
+    {
+        savedEnPassantTarget = board.lastDoublePawnPush;
+        savedMoverHasMoved = pieceToMove.hasMoved;
+        hadCapturedPiece = board.grid[targetX, targetY] != null;
+        savedCapturedHasMoved = hadCapturedPiece && board.grid[targetX, targetY].hasMoved;
+    }
+
+    protected void FinishApply(BoardModel board)
+    {
+        pieceToMove.hasMoved = true;
+        UpdateEnPassantTarget(board);
+        MovePieceOnGrid(board);
+    }
+
+    protected void RestoreApplyState(BoardModel board)
+    {
+        RestorePieceOnGrid(board);
+        pieceToMove.hasMoved = savedMoverHasMoved;
+        board.lastDoublePawnPush = savedEnPassantTarget;
+        if (hadCapturedPiece && capturedAtTarget != null)
+            capturedAtTarget.hasMoved = savedCapturedHasMoved;
+    }
 
     protected void MovePieceOnGrid(BoardModel board)
     {

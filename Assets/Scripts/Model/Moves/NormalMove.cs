@@ -5,19 +5,18 @@ public class NormalMove : Move
 
     public override void ApplyLogic(BoardModel board)
     {
-        MovePieceOnGrid(board);
+        BeginApply(board);
+        FinishApply(board);
     }
 
     public override void UndoLogic(BoardModel board)
     {
-        RestorePieceOnGrid(board);
+        RestoreApplyState(board);
     }
 
     public override bool Execute(BoardModel board, BoardView view)
     {
-        pieceToMove.hasMoved = true;
-        UpdateEnPassantTarget(board);
-        MovePieceOnGrid(board);
+        ApplyLogic(board);
         view.UpdateVisualPiece(startX, startY, targetX, targetY, pieceToMove);
         return false;
     }
