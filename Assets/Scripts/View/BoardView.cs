@@ -76,11 +76,11 @@ public class BoardView : MonoBehaviour
         sr.color = highlightColor;
     }
 
-    public void HighlightValidMoves(List<Vector2Int> validMoves)
+    public void HighlightValidMoves(List<Move> validMoves)
     {
-        foreach (Vector2Int move in validMoves)
+        foreach (Move move in validMoves)
         {
-            SpriteRenderer sr = visualSquares[move.x, move.y].GetComponent<SpriteRenderer>();
+            SpriteRenderer sr = visualSquares[move.targetX, move.targetY].GetComponent<SpriteRenderer>();
             sr.color = validMoveColor;
         }
     }

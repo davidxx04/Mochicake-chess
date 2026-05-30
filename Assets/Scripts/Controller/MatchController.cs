@@ -7,7 +7,7 @@ public class MatchController : MonoBehaviour
     public BoardView boardView;
     public TurnManager turnManager;
 
-    [Header("UI Promoción")]
+    [Header("UI Promocion")]
     public GameObject promotionUI;
 
     private BoardModel logicalBoard;
@@ -18,7 +18,6 @@ public class MatchController : MonoBehaviour
     private bool isWhitePlayer;
     private bool isVsComputer;
 
-    // --- NUEVO: Estado de Promoción ---
     private bool isWaitingForPromotion = false;
     private LogicalPiece pieceToPromote = null;
     private int promoX = -1;
@@ -40,11 +39,8 @@ public class MatchController : MonoBehaviour
 
     private void Update()
     {
-        // Bloqueamos el clic en el tablero si el juego terminó o si estamos esperando a que elijas pieza
         if (Input.GetMouseButtonDown(0) && IsHumanTurn() && !isWaitingForPromotion)
-        {
             HandleClick();
-        }
     }
 
     private bool IsHumanTurn()
@@ -68,13 +64,9 @@ public class MatchController : MonoBehaviour
     private void ProcessSelectionAndMove(LogicalPiece clickedPiece, int logicalX, int logicalY, TeamColor activeColor)
     {
         if (clickedPiece != null && clickedPiece.team == activeColor)
-        {
             SelectPiece(clickedPiece, logicalX, logicalY);
-        }
         else if (selectedPiece != null)
-        {
             TryExecuteMove(logicalX, logicalY);
-        }
     }
 
     private void SelectPiece(LogicalPiece piece, int x, int y)
@@ -86,56 +78,25 @@ public class MatchController : MonoBehaviour
 
         boardView.HighlightSquare(x, y);
 
-        List<Vector2Int> validMoves = MovementLogic.GetValidMoves(logicalBoard, x, y);
+        List<Move> validMoves = MovementLogic.GetValidMoves(logicalBoard, x, y);
         boardView.HighlightValidMoves(validMoves);
     }
 
     private void TryExecuteMove(int targetX, int targetY)
     {
-        List<Vector2Int> validMoves = MovementLogic.GetValidMoves(logicalBoard, selectedX, selectedY);
-        Vector2Int targetMove = new Vector2Int(targetX, targetY);
+        List<Move> validMoves = MovementLogic.GetValidMoves(logicalBoard, selectedX, selectedY);
+        Move chosen = validMoves.Find(m => m.MatchesDestination(targetX, targetY));
 
-        if (validMoves.Contains(targetMove))
+        if (chosen != null)
         {
-            selectedPiece.hasMoved = true;
+            bool requiresPromotion = chosen.Execute(logicalBoard, boardView);
 
-            ProcessCastlingRook(selectedX, selectedY, targetX);
-
-            // ==========================================
-            // --- NUEVO: EJECUCIÓN PEÓN AL PASO ---
-            // ==========================================
-            bool isEnPassant = selectedPiece.type == PieceType.Pawn && selectedX != targetX && logicalBoard.grid[targetX, targetY] == null;
-            if (isEnPassant)
-            {
-                // Destruimos lógica y visualmente al peón que estaba a nuestro lado
-                logicalBoard.grid[targetX, selectedY] = null;
-                boardView.DestroyVisualPiece(targetX, selectedY);
-                Debug.Log("¡Captura al paso!");
-            }
-
-            // --- NUEVO: ANOTAR SALTO DOBLE PARA EL SIGUIENTE TURNO ---
-            if (selectedPiece.type == PieceType.Pawn && Mathf.Abs(targetY - selectedY) == 2)
-            {
-                logicalBoard.lastDoublePawnPush = new Vector2Int(targetX, targetY);
-            }
-            else
-            {
-                // Si movemos cualquier otra cosa, el efecto "En Passant" caduca (se borra la memoria)
-                logicalBoard.lastDoublePawnPush = new Vector2Int(-1, -1);
-            }
-            // ==========================================
-
-            logicalBoard.grid[targetX, targetY] = selectedPiece;
-            logicalBoard.grid[selectedX, selectedY] = null;
-
-            boardView.UpdateVisualPiece(selectedX, selectedY, targetX, targetY, selectedPiece);
-
-            if (CheckPromotion(selectedPiece, targetY))
+            if (requiresPromotion)
             {
                 isWaitingForPromotion = true;
-                pieceToPromote = selectedPiece;
-                promoX = targetX;
-                promoY = targetY;
+                pieceToPromote = chosen.pieceToMove;
+                promoX = chosen.targetX;
+                promoY = chosen.targetY;
                 promotionUI.SetActive(true);
             }
             else
@@ -144,27 +105,20 @@ public class MatchController : MonoBehaviour
             }
         }
 
+        ClearSelection();
+    }
+
+    private void ClearSelection()
+    {
         selectedPiece = null;
         selectedX = -1;
         selectedY = -1;
         boardView.ResetAllSquareColors();
     }
-    // --- LA FUNCIÓN LIMPIA DE COMPROBACIÓN ---
-    private bool CheckPromotion(LogicalPiece piece, int targetY)
-    {
-        if (piece.type == PieceType.Pawn)
-        {
-            int promotionRow = (piece.team == TeamColor.White) ? 7 : 0;
-            return targetY == promotionRow;
-        }
-        return false;
-    }
 
-    // --- LA FUNCIÓN QUE LLAMAN LOS BOTONES DE LA UI ---
-    // Recibimos un string ("Queen", "Rook"...) para que sea súper fácil configurarlo en los botones de Unity
     public void CompletePromotion(string pieceTypeString)
     {
-        PieceType chosenType = PieceType.Queen; // Por defecto
+        PieceType chosenType = PieceType.Queen;
 
         switch (pieceTypeString)
         {
@@ -174,22 +128,16 @@ public class MatchController : MonoBehaviour
             case "Knight": chosenType = PieceType.Knight; break;
         }
 
-        // 1. Mutamos la pieza
         pieceToPromote.type = chosenType;
-
-        // 2. Le pedimos a la Vista que le ponga el disfraz de la nueva pieza (mismo origen y destino)
         boardView.UpdateVisualPiece(promoX, promoY, promoX, promoY, pieceToPromote);
 
-        // 3. Apagamos la UI y quitamos la pausa
         promotionUI.SetActive(false);
         isWaitingForPromotion = false;
         pieceToPromote = null;
 
-        // 4. Ahora sí, el movimiento ha terminado: verificamos jaques y pasamos turno
         CheckGameEndAndPassTurn();
     }
 
-    // --- EL VEREDICTO FINAL EXTRAÍDO ---
     private void CheckGameEndAndPassTurn()
     {
         TeamColor nextColor = (turnManager.currentTurn == TeamColor.White) ? TeamColor.Black : TeamColor.White;
@@ -229,31 +177,5 @@ public class MatchController : MonoBehaviour
             return true;
         }
         return false;
-    }
-
-    // --- LÓGICA DE ENROQUE VISUAL Y LÓGICO ---
-    private void ProcessCastlingRook(int startX, int startY, int targetX)
-    {
-        // Sabemos que es un enroque si movemos un Rey y el salto es de 2 casillas (Mathf.Abs calcula la distancia absoluta)
-        bool isCastling = selectedPiece.type == PieceType.King && Mathf.Abs(startX - targetX) == 2;
-        if (!isCastling) return;
-
-        // Si salta a la derecha, la torre está en 7. Si salta a la izquierda, la torre está en 0.
-        int rookStartX = (targetX > startX) ? 7 : 0;
-
-        // La torre aterriza al lado opuesto del Rey (El Rey va al 6, la Torre al 5)
-        int rookTargetX = (targetX > startX) ? targetX - 1 : targetX + 1;
-
-        LogicalPiece rook = logicalBoard.grid[rookStartX, startY];
-        rook.hasMoved = true;
-
-        // Movemos la Torre lógicamente
-        logicalBoard.grid[rookTargetX, startY] = rook;
-        logicalBoard.grid[rookStartX, startY] = null;
-
-        // Movemos la Torre visualmente (Sin promoción, así que el disfraz es el mismo)
-        boardView.UpdateVisualPiece(rookStartX, startY, rookTargetX, startY, rook);
-
-        Debug.Log("¡Enroque ejecutado!");
     }
 }

@@ -3,96 +3,58 @@ using UnityEngine;
 
 public static class MovementLogic
 {
-    // ==============================================================================
-    // --- PARTE 1: EL FILTRO PRINCIPAL (Mejorado en rendimiento) ---
-    // ==============================================================================
-
-    public static List<Vector2Int> GetValidMoves(BoardModel board, int startX, int startY)
+    public static List<Move> GetValidMoves(BoardModel board, int startX, int startY)
     {
-        List<Vector2Int> legalMoves = new List<Vector2Int>();
+        List<Move> legalMoves = new List<Move>();
         LogicalPiece piece = board.grid[startX, startY];
 
         if (piece == null) return legalMoves;
 
-        List<Vector2Int> pseudoLegalMoves = GetPseudoLegalMoves(board, startX, startY);
-
-        // MEJORA: Buscamos al Rey UNA SOLA VEZ antes del bucle (Ahorramos miles de operaciones)
+        List<Move> pseudoLegalMoves = GetPseudoLegalMoves(board, startX, startY);
         Vector2Int originalKingPos = FindKingPosition(board, piece.team);
 
-        foreach (Vector2Int target in pseudoLegalMoves)
+        foreach (Move move in pseudoLegalMoves)
         {
-            if (!DoesMoveLeaveKingInCheck(board, startX, startY, target.x, target.y, piece.team, originalKingPos))
-            {
-                legalMoves.Add(target);
-            }
+            if (!DoesMoveLeaveKingInCheck(board, move, originalKingPos))
+                legalMoves.Add(move);
         }
 
         return legalMoves;
     }
 
-    // Le hemos añadido el parámetro originalKingPos a la función
-    private static bool DoesMoveLeaveKingInCheck(BoardModel board, int startX, int startY, int targetX, int targetY, TeamColor myColor, Vector2Int originalKingPos)
+    private static bool DoesMoveLeaveKingInCheck(BoardModel board, Move move, Vector2Int originalKingPos)
     {
-        LogicalPiece pieceToMove = board.grid[startX, startY];
-        LogicalPiece pieceAtTarget = board.grid[targetX, targetY];
+        move.ApplyLogic(board);
 
-        // NUEVO: Detectar si esta simulación es un Peón al Paso
-        bool isEnPassant = pieceToMove.type == PieceType.Pawn && startX != targetX && pieceAtTarget == null;
-        LogicalPiece capturedEnPassantPawn = null;
+        Vector2Int currentKingPos = (move.pieceToMove.type == PieceType.King)
+            ? new Vector2Int(move.targetX, move.targetY)
+            : originalKingPos;
 
-        // 1. MAKE (Simular)
-        board.grid[targetX, targetY] = pieceToMove;
-        board.grid[startX, startY] = null;
-        if (isEnPassant)
-        {
-            capturedEnPassantPawn = board.grid[targetX, startY];
-            board.grid[targetX, startY] = null; // Borramos al peón enemigo de la simulación
-        }
-
-        Vector2Int currentKingPos = (pieceToMove.type == PieceType.King) ? new Vector2Int(targetX, targetY) : originalKingPos;
-
-        // 3. RADAR
         bool isKingInCheck = false;
         if (currentKingPos.x != -1)
-        {
-            isKingInCheck = IsSquareUnderAttack(board, currentKingPos.x, currentKingPos.y, myColor);
-        }
+            isKingInCheck = IsSquareUnderAttack(board, currentKingPos.x, currentKingPos.y, move.pieceToMove.team);
 
-        // 4. UNMAKE (Deshacer)
-        board.grid[startX, startY] = pieceToMove;
-        board.grid[targetX, targetY] = pieceAtTarget;
-        if (isEnPassant)
-        {
-            board.grid[targetX, startY] = capturedEnPassantPawn; // Devolvemos el peón enemigo
-        }
-
+        move.UndoLogic(board);
         return isKingInCheck;
     }
 
     private static Vector2Int FindKingPosition(BoardModel board, TeamColor myColor)
     {
-        // Esta función ahora solo se ejecuta 1 sola vez por pieza tocada, en lugar de 20 o 30 veces.
         for (int x = 0; x < 8; x++)
         {
             for (int y = 0; y < 8; y++)
             {
                 LogicalPiece piece = board.grid[x, y];
                 if (piece != null && piece.team == myColor && piece.type == PieceType.King)
-                {
                     return new Vector2Int(x, y);
-                }
             }
         }
         return new Vector2Int(-1, -1);
     }
 
-    // ==============================================================================
-    // --- PARTE 2: GENERACIÓN DE MOVIMIENTOS (Tu código original renombrado) ---
-    // ==============================================================================
-
-    private static List<Vector2Int> GetPseudoLegalMoves(BoardModel board, int startX, int startY)
+    private static List<Move> GetPseudoLegalMoves(BoardModel board, int startX, int startY)
     {
-        List<Vector2Int> pseudoMoves = new List<Vector2Int>();
+        List<Move> pseudoMoves = new List<Move>();
         LogicalPiece piece = board.grid[startX, startY];
 
         switch (piece.type)
@@ -112,9 +74,7 @@ public static class MovementLogic
                     int targetY = startY + jumps[i].y;
 
                     if (IsValidSquare(board, piece.team, targetX, targetY))
-                    {
-                        pseudoMoves.Add(new Vector2Int(targetX, targetY));
-                    }
+                        pseudoMoves.Add(CreateMove(piece, startX, startY, targetX, targetY));
                 }
                 break;
 
@@ -162,9 +122,7 @@ public static class MovementLogic
                     int targetY = startY + kingDirections[i].y;
 
                     if (IsValidSquare(board, piece.team, targetX, targetY))
-                    {
-                        pseudoMoves.Add(new Vector2Int(targetX, targetY));
-                    }
+                        pseudoMoves.Add(CreateMove(piece, startX, startY, targetX, targetY));
                 }
                 pseudoMoves.AddRange(GetCastlingMoves(board, piece, startX, startY));
                 break;
@@ -177,7 +135,7 @@ public static class MovementLogic
                 {
                     if (board.grid[startX, forwardY] == null)
                     {
-                        pseudoMoves.Add(new Vector2Int(startX, forwardY));
+                        pseudoMoves.Add(CreateMove(piece, startX, startY, startX, forwardY));
 
                         bool isStartingPos = (piece.team == TeamColor.White && startY == 1) ||
                                              (piece.team == TeamColor.Black && startY == 6);
@@ -186,9 +144,7 @@ public static class MovementLogic
                         {
                             int doubleForwardY = startY + (direction * 2);
                             if (board.grid[startX, doubleForwardY] == null)
-                            {
-                                pseudoMoves.Add(new Vector2Int(startX, doubleForwardY));
-                            }
+                                pseudoMoves.Add(CreateMove(piece, startX, startY, startX, doubleForwardY));
                         }
                     }
                 }
@@ -205,19 +161,17 @@ public static class MovementLogic
                         LogicalPiece pieceAtTarget = board.grid[targetX, targetY];
 
                         if (pieceAtTarget != null && pieceAtTarget.team != piece.team)
-                        {
-                            pseudoMoves.Add(new Vector2Int(targetX, targetY));
-                        }
+                            pseudoMoves.Add(CreateMove(piece, startX, startY, targetX, targetY));
                     }
                 }
-                // --- NUEVO: PEÓN AL PASO (En Passant) ---
+
                 if (board.lastDoublePawnPush.x != -1)
                 {
-                    // Si el peón que saltó 2 casillas está justo a nuestra izquierda o derecha
                     if (Mathf.Abs(board.lastDoublePawnPush.x - startX) == 1 && board.lastDoublePawnPush.y == startY)
                     {
-                        // Podemos capturarlo moviéndonos en diagonal hacia adelante
-                        pseudoMoves.Add(new Vector2Int(board.lastDoublePawnPush.x, startY + direction));
+                        pseudoMoves.Add(new EnPassantMove(
+                            piece, startX, startY,
+                            board.lastDoublePawnPush.x, startY + direction));
                     }
                 }
                 break;
@@ -226,9 +180,25 @@ public static class MovementLogic
         return pseudoMoves;
     }
 
-    private static List<Vector2Int> GetSlidingMoves(BoardModel board, LogicalPiece piece, int startX, int startY, Vector2Int[] directions)
+    private static Move CreateMove(LogicalPiece piece, int startX, int startY, int targetX, int targetY)
     {
-        List<Vector2Int> moves = new List<Vector2Int>();
+        if (piece.type == PieceType.King && Mathf.Abs(startX - targetX) == 2)
+            return new CastlingMove(piece, startX, startY, targetX, targetY);
+
+        if (piece.type == PieceType.Pawn && IsPromotionSquare(targetY, piece.team))
+            return new PromotionMove(piece, startX, startY, targetX, targetY);
+
+        return new NormalMove(piece, startX, startY, targetX, targetY);
+    }
+
+    private static bool IsPromotionSquare(int y, TeamColor team)
+    {
+        return (team == TeamColor.White && y == 7) || (team == TeamColor.Black && y == 0);
+    }
+
+    private static List<Move> GetSlidingMoves(BoardModel board, LogicalPiece piece, int startX, int startY, Vector2Int[] directions)
+    {
+        List<Move> moves = new List<Move>();
 
         for (int i = 0; i < directions.Length; i++)
         {
@@ -243,13 +213,14 @@ public static class MovementLogic
 
                 if (pieceAtTarget == null)
                 {
-                    moves.Add(new Vector2Int(currentX, currentY));
+                    moves.Add(CreateMove(piece, startX, startY, currentX, currentY));
                     currentX += directions[i].x;
                     currentY += directions[i].y;
                 }
                 else
                 {
-                    if (pieceAtTarget.team != piece.team) moves.Add(new Vector2Int(currentX, currentY));
+                    if (pieceAtTarget.team != piece.team)
+                        moves.Add(CreateMove(piece, startX, startY, currentX, currentY));
                     break;
                 }
             }
@@ -264,10 +235,6 @@ public static class MovementLogic
         if (pieceAtTarget != null && pieceAtTarget.team == myPieceTeam) return false;
         return true;
     }
-
-    // ==============================================================================
-    // --- PARTE 3: EL RADAR DE AMENAZAS ---
-    // ==============================================================================
 
     public static bool IsSquareUnderAttack(BoardModel board, int targetX, int targetY, TeamColor myColor)
     {
@@ -336,9 +303,7 @@ public static class MovementLogic
                 if (piece != null)
                 {
                     if (piece.team != myColor && (piece.type == specificSlider || piece.type == PieceType.Queen))
-                    {
                         return true;
-                    }
                     break;
                 }
                 currentX += dir.x;
@@ -367,14 +332,6 @@ public static class MovementLogic
         return false;
     }
 
-    // ==============================================================================
-    // --- PARTE 4: EL VEREDICTO FINAL (NUEVO) ---
-    // ==============================================================================
-
-    /// <summary>
-    /// Comprueba si un equipo tiene AL MENOS un movimiento legal posible. 
-    /// (Súper optimizado: en cuanto encuentra uno, corta el bucle y devuelve true).
-    /// </summary>
     public static bool HasAnyValidMove(BoardModel board, TeamColor playerColor)
     {
         for (int x = 0; x < 8; x++)
@@ -383,61 +340,38 @@ public static class MovementLogic
             {
                 LogicalPiece piece = board.grid[x, y];
 
-                // Si la pieza es de este jugador...
                 if (piece != null && piece.team == playerColor)
                 {
-                    // Pedimos sus movimientos legales
-                    List<Vector2Int> moves = GetValidMoves(board, x, y);
-
-                    // Si tiene al menos 1, el jugador aún puede jugar. ¡Cortamos la búsqueda!
+                    List<Move> moves = GetValidMoves(board, x, y);
                     if (moves.Count > 0)
-                    {
                         return true;
-                    }
                 }
             }
         }
 
-        // Si ha mirado TODAS sus piezas y ninguna tiene movimientos, está bloqueado.
         return false;
     }
 
-    /// <summary>
-    /// Función auxiliar limpia para que el Árbitro pregunte si un Rey está en Jaque
-    /// </summary>
     public static bool IsKingInCheck(BoardModel board, TeamColor kingColor)
     {
         Vector2Int kingPos = FindKingPosition(board, kingColor);
         if (kingPos.x != -1)
-        {
             return IsSquareUnderAttack(board, kingPos.x, kingPos.y, kingColor);
-        }
         return false;
     }
 
-    // ==============================================================================
-    // --- LÓGICA DE ENROQUE (Helpers Limpios) ---
-    // ==============================================================================
-
-    private static List<Vector2Int> GetCastlingMoves(BoardModel board, LogicalPiece king, int startX, int startY)
+    private static List<Move> GetCastlingMoves(BoardModel board, LogicalPiece king, int startX, int startY)
     {
-        List<Vector2Int> castlingMoves = new List<Vector2Int>();
+        List<Move> castlingMoves = new List<Move>();
 
-        // Regla 1 y 3: El rey no puede haberse movido, ni puede estar en Jaque para poder enrocar.
         if (king.hasMoved) return castlingMoves;
         if (IsSquareUnderAttack(board, startX, startY, king.team)) return castlingMoves;
 
-        // Intentamos el Enroque Corto (Hacia la derecha, Torre en X=7)
         if (CanCastleKingside(board, king.team, startY))
-        {
-            castlingMoves.Add(new Vector2Int(startX + 2, startY));
-        }
+            castlingMoves.Add(new CastlingMove(king, startX, startY, startX + 2, startY));
 
-        // Intentamos el Enroque Largo (Hacia la izquierda, Torre en X=0)
         if (CanCastleQueenside(board, king.team, startY))
-        {
-            castlingMoves.Add(new Vector2Int(startX - 2, startY));
-        }
+            castlingMoves.Add(new CastlingMove(king, startX, startY, startX - 2, startY));
 
         return castlingMoves;
     }
@@ -445,13 +379,10 @@ public static class MovementLogic
     private static bool CanCastleKingside(BoardModel board, TeamColor team, int y)
     {
         LogicalPiece rook = board.grid[7, y];
-        // ¿Hay una torre sana en su sitio?
         if (rook == null || rook.type != PieceType.Rook || rook.team != team || rook.hasMoved) return false;
 
-        // ¿Las casillas intermedias están vacías? (X=5 y X=6)
         if (board.grid[5, y] != null || board.grid[6, y] != null) return false;
 
-        // ¿Alguna de esas casillas está bajo el fuego enemigo?
         if (IsSquareUnderAttack(board, 5, y, team) || IsSquareUnderAttack(board, 6, y, team)) return false;
 
         return true;
@@ -460,13 +391,10 @@ public static class MovementLogic
     private static bool CanCastleQueenside(BoardModel board, TeamColor team, int y)
     {
         LogicalPiece rook = board.grid[0, y];
-        // ¿Hay una torre sana en su sitio?
         if (rook == null || rook.type != PieceType.Rook || rook.team != team || rook.hasMoved) return false;
 
-        // ¿Las casillas intermedias están vacías? (X=1, X=2 y X=3)
         if (board.grid[1, y] != null || board.grid[2, y] != null || board.grid[3, y] != null) return false;
 
-        // El Rey pasa por X=3 y X=2 (No hace falta mirar X=1 para los jaques según las reglas)
         if (IsSquareUnderAttack(board, 2, y, team) || IsSquareUnderAttack(board, 3, y, team)) return false;
 
         return true;
