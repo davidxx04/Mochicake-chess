@@ -76,7 +76,8 @@ public class AIController : MonoBehaviour
         {
             try
             {
-                result = ChessEngine.FindBestMove(clone, aiColor, depth, token);
+                var positionHistory = matchController.GetPositionHistory();
+                result = ChessEngine.FindBestMove(clone, aiColor, depth, positionHistory, token);
             }
             catch (OperationCanceledException)
             {

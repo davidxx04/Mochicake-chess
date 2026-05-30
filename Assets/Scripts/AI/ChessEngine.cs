@@ -3,40 +3,82 @@ using System.Threading;
 
 public static class ChessEngine
 {
-    public static SearchResult FindBestMove(BoardModel board, TeamColor aiColor, int depth, CancellationToken cancellationToken = default)
+    public static SearchResult FindBestMove(
+        BoardModel board,
+        TeamColor aiColor,
+        int depth,
+        IReadOnlyDictionary<ulong, int> gamePositionCounts,
+        CancellationToken cancellationToken = default)
     {
-        var best = new SearchResult { hasMove = false, score = int.MinValue };
-        List<Move> rootMoves = CollectMovesForSide(board, aiColor);
-
+        var rootMoves = CollectMovesForSide(board, aiColor);
         if (rootMoves.Count == 0)
-            return best;
+            return new SearchResult { hasMove = false };
 
+        var scoredMoves = new List<(Move move, int score)>(rootMoves.Count);
         int alpha = int.MinValue + 1;
         int beta = int.MaxValue - 1;
+        var searchPath = new HashSet<ulong>();
 
         foreach (Move move in OrderMoves(board, rootMoves))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             move.ApplyLogic(board);
-            int score = -Negamax(board, depth - 1, -beta, -alpha, GetOpponent(aiColor), aiColor, cancellationToken);
+            TeamColor nextToMove = GetOpponent(aiColor);
+            ulong positionHash = BoardHash.Compute(board, nextToMove);
+
+            int repetitionPenalty = GetRepetitionPenalty(gamePositionCounts, searchPath, positionHash);
+            int score = -Negamax(
+                board,
+                depth - 1,
+                -beta,
+                -alpha,
+                nextToMove,
+                aiColor,
+                searchPath,
+                cancellationToken);
+            score -= repetitionPenalty;
+
             move.UndoLogic(board);
 
-            if (score > best.score || !best.hasMove)
-            {
-                best.hasMove = true;
-                best.score = score;
-                best.fromX = move.startX;
-                best.fromY = move.startY;
-                best.toX = move.targetX;
-                best.toY = move.targetY;
-            }
+            scoredMoves.Add((move, score));
 
             if (score > alpha)
                 alpha = score;
         }
 
-        return best;
+        scoredMoves.Sort((a, b) => b.score.CompareTo(a.score));
+
+        foreach (var (move, _) in scoredMoves)
+        {
+            move.ApplyLogic(board);
+            ulong hash = BoardHash.Compute(board, GetOpponent(aiColor));
+            move.UndoLogic(board);
+
+            if (!WouldCauseGameRepetition(gamePositionCounts, hash))
+            {
+                return new SearchResult
+                {
+                    hasMove = true,
+                    fromX = move.startX,
+                    fromY = move.startY,
+                    toX = move.targetX,
+                    toY = move.targetY,
+                    score = scoredMoves[0].score
+                };
+            }
+        }
+
+        var best = scoredMoves[0].move;
+        return new SearchResult
+        {
+            hasMove = true,
+            fromX = best.startX,
+            fromY = best.startY,
+            toX = best.targetX,
+            toY = best.targetY,
+            score = scoredMoves[0].score
+        };
     }
 
     private static int Negamax(
@@ -46,12 +88,19 @@ public static class ChessEngine
         int beta,
         TeamColor sideToMove,
         TeamColor aiColor,
+        HashSet<ulong> searchPath,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        ulong positionHash = BoardHash.Compute(board, sideToMove);
+        bool repetitionInLine = searchPath.Contains(positionHash);
+        searchPath.Add(positionHash);
+
         if (!MovementLogic.HasAnyValidMove(board, sideToMove))
         {
+            searchPath.Remove(positionHash);
+
             if (MovementLogic.IsKingInCheck(board, sideToMove))
             {
                 return sideToMove == aiColor
@@ -62,7 +111,11 @@ public static class ChessEngine
         }
 
         if (depth <= 0)
-            return BoardEvaluator.Evaluate(board, aiColor);
+        {
+            searchPath.Remove(positionHash);
+            int eval = BoardEvaluator.Evaluate(board, aiColor);
+            return repetitionInLine ? eval - BoardEvaluator.RepetitionPenalty : eval;
+        }
 
         int best = int.MinValue + 1;
         List<Move> moves = CollectMovesForSide(board, sideToMove);
@@ -73,8 +126,11 @@ public static class ChessEngine
             cancellationToken.ThrowIfCancellationRequested();
 
             move.ApplyLogic(board);
-            int score = -Negamax(board, depth - 1, -beta, -alpha, opponent, aiColor, cancellationToken);
+            int score = -Negamax(board, depth - 1, -beta, -alpha, opponent, aiColor, searchPath, cancellationToken);
             move.UndoLogic(board);
+
+            if (repetitionInLine)
+                score -= BoardEvaluator.RepetitionPenalty / 2;
 
             if (score > best)
                 best = score;
@@ -84,7 +140,32 @@ public static class ChessEngine
                 break;
         }
 
+        searchPath.Remove(positionHash);
         return best;
+    }
+
+    private static int GetRepetitionPenalty(
+        IReadOnlyDictionary<ulong, int> gamePositionCounts,
+        HashSet<ulong> searchPath,
+        ulong positionHash)
+    {
+        int penalty = 0;
+
+        if (gamePositionCounts != null && gamePositionCounts.TryGetValue(positionHash, out int gameCount) && gameCount >= 2)
+            penalty += BoardEvaluator.RepetitionPenalty;
+
+        if (searchPath.Contains(positionHash))
+            penalty += BoardEvaluator.RepetitionPenalty / 2;
+
+        return penalty;
+    }
+
+    private static bool WouldCauseGameRepetition(IReadOnlyDictionary<ulong, int> gamePositionCounts, ulong positionHash)
+    {
+        if (gamePositionCounts == null)
+            return false;
+
+        return gamePositionCounts.TryGetValue(positionHash, out int count) && count >= 2;
     }
 
     private static List<Move> CollectMovesForSide(BoardModel board, TeamColor side)
@@ -112,9 +193,24 @@ public static class ChessEngine
             bool bCapture = IsCapture(board, b);
             if (aCapture != bCapture)
                 return bCapture.CompareTo(aCapture);
+
+            bool aCheck = GivesCheck(board, a);
+            bool bCheck = GivesCheck(board, b);
+            if (aCheck != bCheck)
+                return bCheck.CompareTo(aCheck);
+
             return 0;
         });
         return moves;
+    }
+
+    private static bool GivesCheck(BoardModel board, Move move)
+    {
+        move.ApplyLogic(board);
+        TeamColor opponent = GetOpponent(move.pieceToMove.team);
+        bool inCheck = MovementLogic.IsKingInCheck(board, opponent);
+        move.UndoLogic(board);
+        return inCheck;
     }
 
     private static bool IsCapture(BoardModel board, Move move)

@@ -25,6 +25,8 @@ public class MatchController : MonoBehaviour
     private int promoX = -1;
     private int promoY = -1;
 
+    private readonly Dictionary<ulong, int> positionHistory = new Dictionary<ulong, int>();
+
     private void Awake()
     {
         if (aiController == null)
@@ -43,6 +45,7 @@ public class MatchController : MonoBehaviour
         if (promotionUI != null) promotionUI.SetActive(false);
 
         turnManager.StartMatch();
+        RecordCurrentPosition();
         TryStartAiTurn();
     }
 
@@ -63,6 +66,8 @@ public class MatchController : MonoBehaviour
 
     public BoardModel CloneBoard() => logicalBoard.Clone();
 
+    public IReadOnlyDictionary<ulong, int> GetPositionHistory() => positionHistory;
+
     public bool ShouldApplyAiMove(TeamColor aiColor)
     {
         return isVsComputer
@@ -80,7 +85,7 @@ public class MatchController : MonoBehaviour
 
         if (chosen == null)
         {
-            Debug.LogWarning($"[MatchController] IA eligió ({result.fromX},{result.fromY})->({result.toX},{result.toY}) pero no coincide con un movimiento legal.");
+            Debug.LogWarning($"[MatchController] IA eligi ({result.fromX},{result.fromY})->({result.toX},{result.toY}) pero no coincide con un movimiento legal.");
             return;
         }
 
@@ -206,8 +211,18 @@ public class MatchController : MonoBehaviour
         else
         {
             turnManager.PassTurn();
+            RecordCurrentPosition();
             TryStartAiTurn();
         }
+    }
+
+    private void RecordCurrentPosition()
+    {
+        ulong hash = BoardHash.Compute(logicalBoard, turnManager.currentTurn);
+        if (positionHistory.TryGetValue(hash, out int count))
+            positionHistory[hash] = count + 1;
+        else
+            positionHistory[hash] = 1;
     }
 
     private void TryStartAiTurn()
