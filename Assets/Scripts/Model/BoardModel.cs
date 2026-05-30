@@ -1,7 +1,10 @@
+using UnityEngine;
+
 public class BoardModel
 {
 
     public LogicalPiece[,] grid = new LogicalPiece[8, 8];
+    public Vector2Int lastDoublePawnPush = new Vector2Int(-1, -1);
 
     // note: we don´t want to move the settings logic inside here because we want to keep the logic simple and accurate with real chess
     // we will want to manage the settings of the board in the view, but the core logic has to be clear and always the same.

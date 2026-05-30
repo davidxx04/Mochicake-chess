@@ -131,4 +131,14 @@ public class BoardView : MonoBehaviour
         int visualY = isWhitePlayer ? logicalY : 7 - logicalY;
         return new Vector2(visualX - 3.5f, visualY - 3.5f);
     }
+
+    // only used for pawn Passant captures
+    public void DestroyVisualPiece(int x, int y)
+    {
+        if (visualPieces[x, y] != null)
+        {
+            Destroy(visualPieces[x, y]);
+            visualPieces[x, y] = null;
+        }
+    }
 }

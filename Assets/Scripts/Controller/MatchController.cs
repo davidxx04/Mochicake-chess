@@ -99,10 +99,32 @@ public class MatchController : MonoBehaviour
         {
             selectedPiece.hasMoved = true;
 
-            // ¡NUEVO! Detectamos y movemos la Torre si resulta que la jugada era un Enroque
             ProcessCastlingRook(selectedX, selectedY, targetX);
 
-            // Movemos la pieza principal (El Rey, u otra pieza si no era enroque)
+            // ==========================================
+            // --- NUEVO: EJECUCIÓN PEÓN AL PASO ---
+            // ==========================================
+            bool isEnPassant = selectedPiece.type == PieceType.Pawn && selectedX != targetX && logicalBoard.grid[targetX, targetY] == null;
+            if (isEnPassant)
+            {
+                // Destruimos lógica y visualmente al peón que estaba a nuestro lado
+                logicalBoard.grid[targetX, selectedY] = null;
+                boardView.DestroyVisualPiece(targetX, selectedY);
+                Debug.Log("¡Captura al paso!");
+            }
+
+            // --- NUEVO: ANOTAR SALTO DOBLE PARA EL SIGUIENTE TURNO ---
+            if (selectedPiece.type == PieceType.Pawn && Mathf.Abs(targetY - selectedY) == 2)
+            {
+                logicalBoard.lastDoublePawnPush = new Vector2Int(targetX, targetY);
+            }
+            else
+            {
+                // Si movemos cualquier otra cosa, el efecto "En Passant" caduca (se borra la memoria)
+                logicalBoard.lastDoublePawnPush = new Vector2Int(-1, -1);
+            }
+            // ==========================================
+
             logicalBoard.grid[targetX, targetY] = selectedPiece;
             logicalBoard.grid[selectedX, selectedY] = null;
 
@@ -127,8 +149,6 @@ public class MatchController : MonoBehaviour
         selectedY = -1;
         boardView.ResetAllSquareColors();
     }
-
-
     // --- LA FUNCIÓN LIMPIA DE COMPROBACIÓN ---
     private bool CheckPromotion(LogicalPiece piece, int targetY)
     {

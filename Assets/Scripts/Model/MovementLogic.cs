@@ -36,24 +36,35 @@ public static class MovementLogic
         LogicalPiece pieceToMove = board.grid[startX, startY];
         LogicalPiece pieceAtTarget = board.grid[targetX, targetY];
 
-        // 1. Make (Simular)
+        // NUEVO: Detectar si esta simulación es un Peón al Paso
+        bool isEnPassant = pieceToMove.type == PieceType.Pawn && startX != targetX && pieceAtTarget == null;
+        LogicalPiece capturedEnPassantPawn = null;
+
+        // 1. MAKE (Simular)
         board.grid[targetX, targetY] = pieceToMove;
         board.grid[startX, startY] = null;
+        if (isEnPassant)
+        {
+            capturedEnPassantPawn = board.grid[targetX, startY];
+            board.grid[targetX, startY] = null; // Borramos al peón enemigo de la simulación
+        }
 
-        // 2. MEJORA DE RENDIMIENTO: ¿Dónde está el Rey ahora?
-        // Si la pieza que muevo es el Rey, su nueva posición es el target. Si no, es la que ya teníamos guardada.
         Vector2Int currentKingPos = (pieceToMove.type == PieceType.King) ? new Vector2Int(targetX, targetY) : originalKingPos;
 
-        // 3. Radar
+        // 3. RADAR
         bool isKingInCheck = false;
         if (currentKingPos.x != -1)
         {
             isKingInCheck = IsSquareUnderAttack(board, currentKingPos.x, currentKingPos.y, myColor);
         }
 
-        // 4. Unmake (Deshacer)
+        // 4. UNMAKE (Deshacer)
         board.grid[startX, startY] = pieceToMove;
         board.grid[targetX, targetY] = pieceAtTarget;
+        if (isEnPassant)
+        {
+            board.grid[targetX, startY] = capturedEnPassantPawn; // Devolvemos el peón enemigo
+        }
 
         return isKingInCheck;
     }
@@ -197,6 +208,16 @@ public static class MovementLogic
                         {
                             pseudoMoves.Add(new Vector2Int(targetX, targetY));
                         }
+                    }
+                }
+                // --- NUEVO: PEÓN AL PASO (En Passant) ---
+                if (board.lastDoublePawnPush.x != -1)
+                {
+                    // Si el peón que saltó 2 casillas está justo a nuestra izquierda o derecha
+                    if (Mathf.Abs(board.lastDoublePawnPush.x - startX) == 1 && board.lastDoublePawnPush.y == startY)
+                    {
+                        // Podemos capturarlo moviéndonos en diagonal hacia adelante
+                        pseudoMoves.Add(new Vector2Int(board.lastDoublePawnPush.x, startY + direction));
                     }
                 }
                 break;
