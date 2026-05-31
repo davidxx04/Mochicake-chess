@@ -1,5 +1,6 @@
-using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class BoardView : MonoBehaviour
 {
@@ -7,22 +8,38 @@ public class BoardView : MonoBehaviour
     public GameObject squarePrefab;
     public GameObject piecePrefab;
 
-    [Header("ConfiguraciÛn")]
+    [Header("Configuraciùn")]
     public MatchConfig matchConfig;
     public PieceTheme pieceTheme;
 
-    [Header("InteracciÛn Visual")]
-    public Color highlightColor = new Color(0.4f, 0.8f, 0.4f, 0.8f); // Verde semitransparente
-    public Color validMoveColor = new Color(0.4f, 0.7f, 0.9f, 0.8f); // Azul semitransparente
+    [Header("Interacciùn Visual")]
+    public Color highlightColor = new Color(0.4f, 0.8f, 0.4f, 0.8f);
+    public Color validMoveColor = new Color(0.4f, 0.7f, 0.9f, 0.8f);
 
-    // --- ESTADO INTERNO ---
+    [Header("Animaciùn")]
+    [SerializeField] private float moveDuration = 0.25f;
+    [SerializeField] private float jumpHeight = 0.5f;
+    [SerializeField] private AnimationCurve jumpCurve;
+
     private GameObject[,] visualSquares = new GameObject[8, 8];
     private GameObject[,] visualPieces = new GameObject[8, 8];
-    private bool isWhitePlayer; // Variable global cacheada (°Mejora de rendimiento!)
+    private readonly Dictionary<GameObject, Coroutine> activeAnimations = new Dictionary<GameObject, Coroutine>();
+    private bool isWhitePlayer;
+
+    private void Awake()
+    {
+        if (jumpCurve == null || jumpCurve.length == 0)
+        {
+            jumpCurve = new AnimationCurve(
+                new Keyframe(0f, 0f),
+                new Keyframe(0.5f, 1f),
+                new Keyframe(1f, 0f));
+        }
+    }
 
     public void InitializeView(BoardModel model)
     {
-        isWhitePlayer = matchConfig.isPlayingWhite; // Lo leemos una sola vez
+        isWhitePlayer = matchConfig.isPlayingWhite;
         DrawBoard();
         DrawPieces(model);
     }
@@ -33,11 +50,11 @@ public class BoardView : MonoBehaviour
         {
             for (int y = 0; y < 8; y++)
             {
-                GameObject square = Instantiate(squarePrefab, this.transform);
-                square.transform.position = GetRealWorldPosition(x, y); // Uso del Helper
+                GameObject square = Instantiate(squarePrefab, transform);
+                square.transform.position = GetRealWorldPosition(x, y);
 
                 SpriteRenderer sr = square.GetComponent<SpriteRenderer>();
-                sr.color = Color.clear; // Invisible por defecto (dejamos ver el asset)
+                sr.color = Color.clear;
 
                 square.name = $"Square_{x}_{y}";
                 visualSquares[x, y] = square;
@@ -55,8 +72,8 @@ public class BoardView : MonoBehaviour
 
                 if (pieceData != null)
                 {
-                    GameObject pieceGo = Instantiate(piecePrefab, this.transform);
-                    pieceGo.transform.position = GetRealWorldPosition(x, y); // Uso del Helper
+                    GameObject pieceGo = Instantiate(piecePrefab, transform);
+                    pieceGo.transform.position = GetRealWorldPosition(x, y);
 
                     SpriteRenderer sr = pieceGo.GetComponent<SpriteRenderer>();
                     sr.sprite = pieceTheme.GetSprite(pieceData.type, pieceData.team);
@@ -67,8 +84,6 @@ public class BoardView : MonoBehaviour
             }
         }
     }
-
-    // --- INTERACCI”N Y MOVIMIENTO ---
 
     public void HighlightSquare(int logicalX, int logicalY)
     {
@@ -92,53 +107,104 @@ public class BoardView : MonoBehaviour
             for (int y = 0; y < 8; y++)
             {
                 SpriteRenderer sr = visualSquares[x, y].GetComponent<SpriteRenderer>();
-                sr.color = Color.clear; // Las apagamos volviÈndolas invisibles
+                sr.color = Color.clear;
             }
         }
     }
 
     public void UpdateVisualPiece(int startX, int startY, int targetX, int targetY, LogicalPiece logicalPiece)
     {
-        // 1. Solo hacemos la lÛgica de movimiento y destrucciÛn si la pieza realmente cambia de casilla
         if (startX != targetX || startY != targetY)
         {
+            GameObject movingPiece = visualPieces[startX, startY];
+            if (movingPiece == null)
+                return;
+
+            Vector3 startPos = movingPiece.transform.position;
+            Vector3 targetPos = GetRealWorldPosition(targetX, targetY);
+
             if (visualPieces[targetX, targetY] != null)
             {
+                CancelAnimation(visualPieces[targetX, targetY]);
                 Destroy(visualPieces[targetX, targetY]);
             }
 
-            GameObject movingPiece = visualPieces[startX, startY];
             visualPieces[targetX, targetY] = movingPiece;
             visualPieces[startX, startY] = null;
 
-            movingPiece.transform.position = GetRealWorldPosition(targetX, targetY);
+            UpdatePieceSprite(movingPiece, logicalPiece);
+            StartPieceAnimation(movingPiece, startPos, targetPos);
         }
-
-        // 2. Pase lo que pase (se haya movido o solo haya promocionado en el sitio), 
-        // le actualizamos el disfraz a la pieza que est· en el destino.
-        if (visualPieces[targetX, targetY] != null)
+        else if (visualPieces[targetX, targetY] != null)
         {
-            SpriteRenderer sr = visualPieces[targetX, targetY].GetComponent<SpriteRenderer>();
-            sr.sprite = pieceTheme.GetSprite(logicalPiece.type, logicalPiece.team);
+            UpdatePieceSprite(visualPieces[targetX, targetY], logicalPiece);
         }
     }
-    // --- HELPER METODS (DRY) ---
 
-    // Este mÈtodo concentra todas las matem·ticas de rotaciÛn y centrado de la c·mara
+    public void DestroyVisualPiece(int x, int y)
+    {
+        if (visualPieces[x, y] == null)
+            return;
+
+        CancelAnimation(visualPieces[x, y]);
+        Destroy(visualPieces[x, y]);
+        visualPieces[x, y] = null;
+    }
+
+    private void StartPieceAnimation(GameObject piece, Vector3 startPos, Vector3 targetPos)
+    {
+        CancelAnimation(piece);
+        activeAnimations[piece] = StartCoroutine(AnimatePiece(piece, startPos, targetPos));
+    }
+
+    private void CancelAnimation(GameObject piece)
+    {
+        if (piece == null || !activeAnimations.TryGetValue(piece, out Coroutine running))
+            return;
+
+        StopCoroutine(running);
+        activeAnimations.Remove(piece);
+    }
+
+    private IEnumerator AnimatePiece(GameObject piece, Vector3 startPos, Vector3 targetPos)
+    {
+        try
+        {
+            float elapsed = 0f;
+
+            while (elapsed < moveDuration)
+            {
+                if (piece == null)
+                    yield break;
+
+                float t = elapsed / moveDuration;
+                Vector3 pos = Vector3.Lerp(startPos, targetPos, t);
+                pos.y += jumpCurve.Evaluate(t) * jumpHeight;
+                piece.transform.position = pos;
+
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            if (piece != null)
+                piece.transform.position = targetPos;
+        }
+        finally
+        {
+            activeAnimations.Remove(piece);
+        }
+    }
+
+    private void UpdatePieceSprite(GameObject piece, LogicalPiece logicalPiece)
+    {
+        SpriteRenderer sr = piece.GetComponent<SpriteRenderer>();
+        sr.sprite = pieceTheme.GetSprite(logicalPiece.type, logicalPiece.team);
+    }
+
     private Vector2 GetRealWorldPosition(int logicalX, int logicalY)
     {
         int visualX = isWhitePlayer ? logicalX : 7 - logicalX;
         int visualY = isWhitePlayer ? logicalY : 7 - logicalY;
         return new Vector2(visualX - 3.5f, visualY - 3.5f);
-    }
-
-    // only used for pawn Passant captures
-    public void DestroyVisualPiece(int x, int y)
-    {
-        if (visualPieces[x, y] != null)
-        {
-            Destroy(visualPieces[x, y]);
-            visualPieces[x, y] = null;
-        }
     }
 }
