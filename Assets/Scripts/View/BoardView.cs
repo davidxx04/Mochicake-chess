@@ -8,18 +8,20 @@ public class BoardView : MonoBehaviour
     public GameObject squarePrefab;
     public GameObject piecePrefab;
 
-    [Header("Configuracin")]
+    [Header("Configuracion")]
     public MatchConfig matchConfig;
     public PieceTheme pieceTheme;
 
-    [Header("Interaccin Visual")]
+    [Header("Interaccion Visual")]
     public Color highlightColor = new Color(0.4f, 0.8f, 0.4f, 0.8f);
     public Color validMoveColor = new Color(0.4f, 0.7f, 0.9f, 0.8f);
 
-    [Header("Animacin")]
-    [SerializeField] private float moveDuration = 0.25f;
+    [Header("Animacion")]
+    [SerializeField] private float moveDuration = 0.32f;
     [SerializeField] private float jumpHeight = 0.5f;
+    [SerializeField] private float maxTiltDegrees = 10f;
     [SerializeField] private AnimationCurve jumpCurve;
+    [SerializeField] private AnimationCurve moveEaseCurve;
 
     private GameObject[,] visualSquares = new GameObject[8, 8];
     private GameObject[,] visualPieces = new GameObject[8, 8];
@@ -31,9 +33,17 @@ public class BoardView : MonoBehaviour
         if (jumpCurve == null || jumpCurve.length == 0)
         {
             jumpCurve = new AnimationCurve(
-                new Keyframe(0f, 0f),
-                new Keyframe(0.5f, 1f),
-                new Keyframe(1f, 0f));
+                new Keyframe(0f, 0f, 0f, 2f),
+                new Keyframe(0.5f, 1f, 0f, 0f),
+                new Keyframe(1f, 0f, -2f, 0f));
+        }
+
+        if (moveEaseCurve == null || moveEaseCurve.length == 0)
+        {
+            moveEaseCurve = new AnimationCurve(
+                new Keyframe(0f, 0f, 0f, 0f),
+                new Keyframe(0.75f, 1.06f, 1.5f, 0f),
+                new Keyframe(1f, 1f, 0f, 0f));
         }
     }
 
@@ -164,10 +174,20 @@ public class BoardView : MonoBehaviour
 
         StopCoroutine(running);
         activeAnimations.Remove(piece);
+        ResetPieceTransform(piece);
+    }
+
+    private static void ResetPieceTransform(GameObject piece)
+    {
+        if (piece == null) return;
+        piece.transform.rotation = Quaternion.identity;
     }
 
     private IEnumerator AnimatePiece(GameObject piece, Vector3 startPos, Vector3 targetPos)
     {
+        float baseRotationZ = piece.transform.eulerAngles.z;
+        float tiltSign = GetTiltSign(startPos, targetPos);
+
         try
         {
             float elapsed = 0f;
@@ -178,21 +198,38 @@ public class BoardView : MonoBehaviour
                     yield break;
 
                 float t = elapsed / moveDuration;
-                Vector3 pos = Vector3.Lerp(startPos, targetPos, t);
-                pos.y += jumpCurve.Evaluate(t) * jumpHeight;
+                float easedT = moveEaseCurve.Evaluate(t);
+                float arcT = jumpCurve.Evaluate(t);
+
+                Vector3 pos = Vector3.Lerp(startPos, targetPos, easedT);
+                pos.y += arcT * jumpHeight;
                 piece.transform.position = pos;
+                piece.transform.rotation = Quaternion.Euler(0f, 0f, baseRotationZ + arcT * maxTiltDegrees * tiltSign);
 
                 elapsed += Time.deltaTime;
                 yield return null;
             }
 
             if (piece != null)
+            {
                 piece.transform.position = targetPos;
+                piece.transform.rotation = Quaternion.Euler(0f, 0f, baseRotationZ);
+            }
         }
         finally
         {
             activeAnimations.Remove(piece);
         }
+    }
+
+    private static float GetTiltSign(Vector3 startPos, Vector3 targetPos)
+    {
+        float dx = targetPos.x - startPos.x;
+        if (Mathf.Abs(dx) > 0.01f)
+            return Mathf.Sign(dx);
+
+        float dy = targetPos.y - startPos.y;
+        return Mathf.Abs(dy) > 0.01f ? Mathf.Sign(dy) : 1f;
     }
 
     private void UpdatePieceSprite(GameObject piece, LogicalPiece logicalPiece)

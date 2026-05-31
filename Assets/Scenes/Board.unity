@@ -1240,6 +1240,39 @@ MonoBehaviour:
   pieceTheme: {fileID: 11400000, guid: 0cf2272e28de2d54e8ab063fb8a04dad, type: 2}
   highlightColor: {r: 0.4, g: 0.8, b: 0.4, a: 0.8}
   validMoveColor: {r: 0.4, g: 0.7, b: 0.9, a: 0.8}
+  moveDuration: 0.15
+  jumpHeight: 0.6
+  maxTiltDegrees: 40
+  jumpCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 2
+      outSlope: 2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.73096514
+      value: 0.25091535
+      inSlope: -5.989926
+      outSlope: -5.989926
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.021291843
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  moveEaseCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!4 &1560130395
 Transform:
   m_ObjectHideFlags: 0
