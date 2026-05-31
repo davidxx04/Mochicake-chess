@@ -133,10 +133,14 @@ public class BoardView : MonoBehaviour
             Vector3 startPos = movingPiece.transform.position;
             Vector3 targetPos = GetRealWorldPosition(targetX, targetY);
 
-            if (visualPieces[targetX, targetY] != null)
+            GameObject capturedPiece = visualPieces[targetX, targetY];
+            if (capturedPiece != null)
             {
-                CancelAnimation(visualPieces[targetX, targetY]);
-                Destroy(visualPieces[targetX, targetY]);
+                Vector3 capturePos = capturedPiece.transform.position;
+                CancelAnimation(capturedPiece);
+                if (FXManager.Instance != null)
+                    FXManager.Instance.PlayCaptureParticles(capturePos);
+                Destroy(capturedPiece);
             }
 
             visualPieces[targetX, targetY] = movingPiece;
@@ -156,8 +160,12 @@ public class BoardView : MonoBehaviour
         if (visualPieces[x, y] == null)
             return;
 
-        CancelAnimation(visualPieces[x, y]);
-        Destroy(visualPieces[x, y]);
+        GameObject capturedPiece = visualPieces[x, y];
+        Vector3 capturePos = capturedPiece.transform.position;
+        CancelAnimation(capturedPiece);
+        if (FXManager.Instance != null)
+            FXManager.Instance.PlayCaptureParticles(capturePos);
+        Destroy(capturedPiece);
         visualPieces[x, y] = null;
     }
 

@@ -85,16 +85,18 @@ public class MatchController : MonoBehaviour
 
         if (chosen == null)
         {
-            Debug.LogWarning($"[MatchController] IA eligi ({result.fromX},{result.fromY})->({result.toX},{result.toY}) pero no coincide con un movimiento legal.");
+            Debug.LogWarning($"[MatchController] IA eligiï¿½ ({result.fromX},{result.fromY})->({result.toX},{result.toY}) pero no coincide con un movimiento legal.");
             return;
         }
 
         bool requiresPromotion = chosen.Execute(logicalBoard, boardView);
+        TryShowImmediatePopup(chosen);
 
         if (requiresPromotion)
         {
             chosen.pieceToMove.type = PieceType.Queen;
             boardView.UpdateVisualPiece(result.toX, result.toY, result.toX, result.toY, chosen.pieceToMove);
+            TryShowPromotionPopup();
         }
 
         CheckGameEndAndPassTurn();
@@ -148,6 +150,7 @@ public class MatchController : MonoBehaviour
         if (chosen != null)
         {
             bool requiresPromotion = chosen.Execute(logicalBoard, boardView);
+            TryShowImmediatePopup(chosen);
 
             if (requiresPromotion)
             {
@@ -174,6 +177,29 @@ public class MatchController : MonoBehaviour
         boardView.ResetAllSquareColors();
     }
 
+    private void TryShowImmediatePopup(Move chosen)
+    {
+        if (FXManager.Instance == null || chosen == null)
+            return;
+
+        if (chosen is CastlingMove)
+            FXManager.Instance.ShowPopup(FXManager.PopupEvent.Castling);
+        else if (chosen is EnPassantMove)
+            FXManager.Instance.ShowPopup(FXManager.PopupEvent.EnPassant);
+    }
+
+    private void TryShowPromotionPopup()
+    {
+        if (FXManager.Instance != null)
+            FXManager.Instance.ShowPopup(FXManager.PopupEvent.Promotion);
+    }
+
+    private void TryShowCheckPopup()
+    {
+        if (FXManager.Instance != null)
+            FXManager.Instance.ShowPopup(FXManager.PopupEvent.Check);
+    }
+
     public void CompletePromotion(string pieceTypeString)
     {
         PieceType chosenType = PieceType.Queen;
@@ -193,6 +219,8 @@ public class MatchController : MonoBehaviour
         isWaitingForPromotion = false;
         pieceToPromote = null;
 
+        TryShowPromotionPopup();
+
         CheckGameEndAndPassTurn();
     }
 
@@ -200,16 +228,19 @@ public class MatchController : MonoBehaviour
     {
         TeamColor nextColor = (turnManager.currentTurn == TeamColor.White) ? TeamColor.Black : TeamColor.White;
         bool enemyHasMoves = MovementLogic.HasAnyValidMove(logicalBoard, nextColor);
+        bool isCheck = MovementLogic.IsKingInCheck(logicalBoard, nextColor);
 
         if (!enemyHasMoves)
         {
-            if (MovementLogic.IsKingInCheck(logicalBoard, nextColor))
+            if (isCheck)
                 turnManager.DeclareCheckmate(turnManager.currentTurn);
             else
                 turnManager.DeclareStalemate();
         }
         else
         {
+            if (isCheck)
+                TryShowCheckPopup();
             turnManager.PassTurn();
             RecordCurrentPosition();
             TryStartAiTurn();
