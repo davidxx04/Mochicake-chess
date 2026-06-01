@@ -220,6 +220,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   matchConfig: {fileID: 11400000, guid: 954c25d13c513bb47ab94fcef551ef53, type: 2}
+  leftCardFlipper: {fileID: 1234698703}
+  rightCardFlipper: {fileID: 1122046758}
+  whiteKingSprite: {fileID: 21300000, guid: f2ae2ea57898cc043a6322a1e0a531ee, type: 3}
+  blackKingSprite: {fileID: 21300000, guid: 2be243c1dddf7f04298a459b2d05897a, type: 3}
+  revealBoth: 0
+  leftButton: {fileID: 1234698700}
+  rightButton: {fileID: 1122046755}
+  boardSceneName: Board
 --- !u!4 &501593022
 Transform:
   m_ObjectHideFlags: 0
@@ -247,6 +255,7 @@ GameObject:
   - component: {fileID: 1122046757}
   - component: {fileID: 1122046756}
   - component: {fileID: 1122046755}
+  - component: {fileID: 1122046758}
   m_Layer: 5
   m_Name: Btn_RightCard
   m_TagString: Untagged
@@ -368,6 +377,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1122046753}
   m_CullTransparentMesh: 1
+--- !u!114 &1122046758
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1122046753}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6de4b86af8ad21146a0b49278b4f3a7a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  flipDuration: 0.5
+  backSprite: {fileID: 21300000, guid: 3459bc3527d91274e87ba60caff99d9f, type: 3}
+  revealHoldTime: 1
 --- !u!1 &1142833067
 GameObject:
   m_ObjectHideFlags: 0
@@ -425,7 +449,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Touch me
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -514,6 +538,7 @@ GameObject:
   - component: {fileID: 1234698702}
   - component: {fileID: 1234698701}
   - component: {fileID: 1234698700}
+  - component: {fileID: 1234698703}
   m_Layer: 5
   m_Name: Btn_LeftCard
   m_TagString: Untagged
@@ -635,6 +660,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1234698698}
   m_CullTransparentMesh: 1
+--- !u!114 &1234698703
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1234698698}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6de4b86af8ad21146a0b49278b4f3a7a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  flipDuration: 0.5
+  backSprite: {fileID: 21300000, guid: 3459bc3527d91274e87ba60caff99d9f, type: 3}
+  revealHoldTime: 1
 --- !u!1001 &1611282041
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -841,7 +881,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Touch me
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

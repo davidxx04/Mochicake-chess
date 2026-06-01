@@ -6,7 +6,18 @@ public class ChooseColorController : MonoBehaviour
     [Header("Referencias")]
     public MatchConfig matchConfig;
 
+    [Header("Cartas")]
+    [SerializeField] private CardFlipper leftCardFlipper;
+    [SerializeField] private CardFlipper rightCardFlipper;
+    [SerializeField] private Sprite whiteKingSprite;
+    [SerializeField] private Sprite blackKingSprite;
+    [SerializeField] private bool revealBoth = true;
+
+    [Header("Escena")]
+    [SerializeField] private string boardSceneName = "Board";
+
     private bool isLeftCardWhite;
+    private bool hasSelected;
 
     private void Start()
     {
@@ -15,18 +26,45 @@ public class ChooseColorController : MonoBehaviour
 
     public void SelectLeftCard()
     {
+        if (hasSelected)
+            return;
+        hasSelected = true;
+
         matchConfig.isPlayingWhite = isLeftCardWhite;
-        LoadBoardScene();
+        Sprite leftSprite = isLeftCardWhite ? whiteKingSprite : blackKingSprite;
+        Sprite rightSprite = isLeftCardWhite ? blackKingSprite : whiteKingSprite;
+
+        if (revealBoth && rightCardFlipper != null)
+            rightCardFlipper.FlipCard(rightSprite, null);
+
+        if (leftCardFlipper != null)
+            leftCardFlipper.FlipCard(leftSprite, LoadBoardScene);
+        else
+            LoadBoardScene();
     }
 
     public void SelectRightCard()
     {
+        if (hasSelected)
+            return;
+        hasSelected = true;
+
         matchConfig.isPlayingWhite = !isLeftCardWhite;
-        LoadBoardScene();
+        Sprite rightSprite = isLeftCardWhite ? blackKingSprite : whiteKingSprite;
+        Sprite leftSprite = isLeftCardWhite ? whiteKingSprite : blackKingSprite;
+
+        if (revealBoth && leftCardFlipper != null)
+            leftCardFlipper.FlipCard(leftSprite, null);
+
+        if (rightCardFlipper != null)
+            rightCardFlipper.FlipCard(rightSprite, LoadBoardScene);
+        else
+            LoadBoardScene();
     }
 
     private void LoadBoardScene()
     {
-        SceneManager.LoadScene("Board");
+        SceneManager.LoadScene(boardSceneName);
     }
+
 }

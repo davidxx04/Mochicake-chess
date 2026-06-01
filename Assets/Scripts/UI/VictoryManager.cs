@@ -85,7 +85,7 @@ public class VictoryManager : MonoBehaviour
         if (winnerText != null)
         {
             winnerText.text = winner == TeamColor.White ? "WHITE WINS!" : "BLACK WINS!";
-            winnerText.color = winner == TeamColor.White ? whiteWinColor : blackWinColor;
+            // winnerText.color = winner == TeamColor.White ? whiteWinColor : blackWinColor;
         }
 
         if (outcomeImage != null)
