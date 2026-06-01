@@ -205,6 +205,9 @@ public class MatchController : MonoBehaviour
 
     public void CompletePromotion(string pieceTypeString)
     {
+        if (SfxManager.Instance != null)
+            SfxManager.Instance.PlayClick();
+
         PieceType chosenType = PieceType.Queen;
 
         switch (pieceTypeString)

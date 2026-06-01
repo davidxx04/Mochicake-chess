@@ -237,12 +237,17 @@ public class BoardView : MonoBehaviour
             if (movingPiece == null)
                 return;
 
+            if (SfxManager.Instance != null)
+                SfxManager.Instance.PlayMove();
+
             Vector3 startPos = movingPiece.transform.position;
             Vector3 targetPos = GetRealWorldPosition(targetX, targetY);
 
             GameObject capturedPiece = visualPieces[targetX, targetY];
             if (capturedPiece != null)
             {
+                if (SfxManager.Instance != null)
+                    SfxManager.Instance.PlayHit();
                 Vector3 capturePos = capturedPiece.transform.position;
                 CancelAnimation(capturedPiece);
                 if (FXManager.Instance != null)
@@ -268,6 +273,8 @@ public class BoardView : MonoBehaviour
             return;
 
         GameObject capturedPiece = visualPieces[x, y];
+        if (SfxManager.Instance != null)
+            SfxManager.Instance.PlayHit();
         Vector3 capturePos = capturedPiece.transform.position;
         CancelAnimation(capturedPiece);
         if (FXManager.Instance != null)

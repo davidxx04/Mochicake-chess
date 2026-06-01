@@ -26,6 +26,8 @@ public class ChooseColorController : MonoBehaviour
 
     public void SelectLeftCard()
     {
+        if (SfxManager.Instance != null)
+            SfxManager.Instance.PlayClick();
         if (hasSelected)
             return;
         hasSelected = true;
@@ -45,6 +47,8 @@ public class ChooseColorController : MonoBehaviour
 
     public void SelectRightCard()
     {
+        if (SfxManager.Instance != null)
+            SfxManager.Instance.PlayClick();
         if (hasSelected)
             return;
         hasSelected = true;

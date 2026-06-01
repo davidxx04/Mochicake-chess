@@ -76,6 +76,8 @@ public class VictoryManager : MonoBehaviour
 
     public void RestartGame()
     {
+        if (SfxManager.Instance != null)
+            SfxManager.Instance.PlayClick();
         if (!string.IsNullOrEmpty(restartSceneName))
             SceneManager.LoadScene(restartSceneName);
     }
@@ -118,11 +120,15 @@ public class VictoryManager : MonoBehaviour
 
     private void HandleCheckmate(TeamColor winner)
     {
+        if (SfxManager.Instance != null)
+            SfxManager.Instance.PlayWin();
         ShowVictoryScreen(winner);
     }
 
     private void HandleStalemate()
     {
+        if (SfxManager.Instance != null)
+            SfxManager.Instance.PlayWin();
         ShowDrawScreen();
     }
 

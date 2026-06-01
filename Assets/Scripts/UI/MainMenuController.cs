@@ -10,6 +10,8 @@ public class MainMenuController : MonoBehaviour
     // When pressing the "Play vs Computer" button
     public void PlayVsComputer()
     {
+        if (SfxManager.Instance != null)
+            SfxManager.Instance.PlayClick();
         matchConfig.isVsComputer = true;
         LoadNextScene();
     }
@@ -17,6 +19,8 @@ public class MainMenuController : MonoBehaviour
     // When pressing the "Play vs Player" button
     public void PlayVsPlayer()
     {
+        if (SfxManager.Instance != null)
+            SfxManager.Instance.PlayClick();
         matchConfig.isVsComputer = false;
         LoadNextScene();
     }
