@@ -21,6 +21,10 @@ public class VictoryManager : MonoBehaviour
     [SerializeField] private Sprite victorySprite;
     [SerializeField] private Sprite drawSprite;
 
+    [Header("Colores")]
+    [SerializeField] private Color whiteWinColor = new Color(0.95f, 0.93f, 0.85f, 1f);
+    [SerializeField] private Color blackWinColor = new Color(0.8f, 0.8f, 0.8f, 1f);
+
     [Header("Escena")]
     [SerializeField] private string restartSceneName = "MainMenu";
 
@@ -76,10 +80,24 @@ public class VictoryManager : MonoBehaviour
             SceneManager.LoadScene(restartSceneName);
     }
 
+    public void ShowVictoryScreen(TeamColor winner)
+    {
+        if (winnerText != null)
+        {
+            winnerText.text = winner == TeamColor.White ? "WHITE WINS!" : "BLACK WINS!";
+            winnerText.color = winner == TeamColor.White ? whiteWinColor : blackWinColor;
+        }
+
+        if (outcomeImage != null)
+            outcomeImage.sprite = victorySprite;
+
+        ShowPanel();
+    }
+
     public void ShowVictoryScreen(string winnerName)
     {
         if (winnerText != null)
-            winnerText.text = winnerName + " GANAN!";
+            winnerText.text = winnerName + " WINS!";
 
         if (outcomeImage != null)
             outcomeImage.sprite = victorySprite;
@@ -90,7 +108,7 @@ public class VictoryManager : MonoBehaviour
     public void ShowDrawScreen()
     {
         if (winnerText != null)
-            winnerText.text = "EMPATE";
+            winnerText.text = "DRAW";
 
         if (outcomeImage != null)
             outcomeImage.sprite = drawSprite;
@@ -100,7 +118,7 @@ public class VictoryManager : MonoBehaviour
 
     private void HandleCheckmate(TeamColor winner)
     {
-        ShowVictoryScreen(FormatWinnerName(winner));
+        ShowVictoryScreen(winner);
     }
 
     private void HandleStalemate()
@@ -149,6 +167,6 @@ public class VictoryManager : MonoBehaviour
 
     private static string FormatWinnerName(TeamColor winner)
     {
-        return winner == TeamColor.White ? "BLANCAS" : "NEGRAS";
+        return winner == TeamColor.White ? "WHITE" : "BLACK";
     }
 }
