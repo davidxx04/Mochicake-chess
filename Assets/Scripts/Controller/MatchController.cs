@@ -140,6 +140,7 @@ public class MatchController : MonoBehaviour
 
         List<Move> validMoves = MovementLogic.GetValidMoves(logicalBoard, x, y);
         boardView.HighlightValidMoves(validMoves);
+        boardView.ElevateSelectedPiece(x, y);
     }
 
     private void TryExecuteMove(int targetX, int targetY)
@@ -149,6 +150,7 @@ public class MatchController : MonoBehaviour
 
         if (chosen != null)
         {
+            boardView.ResetSelectedPiece();
             bool requiresPromotion = chosen.Execute(logicalBoard, boardView);
             TryShowImmediatePopup(chosen);
 
@@ -171,6 +173,7 @@ public class MatchController : MonoBehaviour
 
     private void ClearSelection()
     {
+        boardView.ResetSelectedPiece();
         selectedPiece = null;
         selectedX = -1;
         selectedY = -1;

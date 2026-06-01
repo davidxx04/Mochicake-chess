@@ -14,7 +14,13 @@ public class BoardView : MonoBehaviour
 
     [Header("Interaccion Visual")]
     public Color highlightColor = new Color(0.4f, 0.8f, 0.4f, 0.8f);
-    public Color validMoveColor = new Color(0.4f, 0.7f, 0.9f, 0.8f);
+    public Color validMoveColor = new Color(0.8f, 0.6f, 0.2f, 0.8f);
+    [SerializeField] private GameObject validMoveMarkerPrefab;
+
+    [Header("Seleccion")]
+    [SerializeField] private float selectedLiftOffset = 0.4f;
+    [SerializeField] private GameObject selectionPieceGlowPrefab;
+    [SerializeField] private GameObject selectionSquareGlowPrefab;
 
     [Header("Animacion")]
     [SerializeField] private float moveDuration = 0.32f;
@@ -27,6 +33,11 @@ public class BoardView : MonoBehaviour
     private GameObject[,] visualPieces = new GameObject[8, 8];
     private readonly Dictionary<GameObject, Coroutine> activeAnimations = new Dictionary<GameObject, Coroutine>();
     private bool isWhitePlayer;
+    private GameObject currentSelectedPiece;
+    private Vector3 originalSelectedPos;
+    private GameObject currentPieceGlow;
+    private GameObject currentSquareGlow;
+    private readonly List<GameObject> validMoveMarkers = new List<GameObject>();
 
     private void Awake()
     {
@@ -103,10 +114,24 @@ public class BoardView : MonoBehaviour
 
     public void HighlightValidMoves(List<Move> validMoves)
     {
-        foreach (Move move in validMoves)
+        ClearValidMoveMarkers();
+        if (validMoveMarkerPrefab == null)
+            return;
+
+        for (int i = 0; i < validMoves.Count; i++)
         {
-            SpriteRenderer sr = visualSquares[move.targetX, move.targetY].GetComponent<SpriteRenderer>();
-            sr.color = validMoveColor;
+            Move move = validMoves[i];
+            GameObject marker = GetValidMoveMarker(i);
+            if (marker == null)
+                continue;
+
+            marker.transform.position = visualSquares[move.targetX, move.targetY].transform.position;
+            marker.transform.rotation = Quaternion.identity;
+            marker.SetActive(true);
+
+            SpriteRenderer sr = marker.GetComponent<SpriteRenderer>();
+            if (sr != null)
+                sr.color = validMoveColor;
         }
     }
 
@@ -119,6 +144,88 @@ public class BoardView : MonoBehaviour
                 SpriteRenderer sr = visualSquares[x, y].GetComponent<SpriteRenderer>();
                 sr.color = Color.clear;
             }
+        }
+
+        ClearValidMoveMarkers();
+    }
+
+    public void ElevateSelectedPiece(int x, int y)
+    {
+        ResetSelectedPiece();
+
+        GameObject piece = visualPieces[x, y];
+        if (piece == null)
+            return;
+
+        currentSelectedPiece = piece;
+        originalSelectedPos = piece.transform.position;
+        piece.transform.position = originalSelectedPos + new Vector3(0f, selectedLiftOffset, 0f);
+
+        if (selectionPieceGlowPrefab != null)
+        {
+            currentPieceGlow = Instantiate(selectionPieceGlowPrefab, piece.transform);
+            currentPieceGlow.transform.localPosition = Vector3.zero;
+            currentPieceGlow.transform.localRotation = Quaternion.identity;
+            currentPieceGlow.transform.localScale = Vector3.one;
+
+            SpriteRenderer pieceRenderer = piece.GetComponent<SpriteRenderer>();
+            SpriteRenderer glowRenderer = currentPieceGlow.GetComponent<SpriteRenderer>();
+            if (pieceRenderer != null && glowRenderer != null)
+            {
+                glowRenderer.sortingLayerID = pieceRenderer.sortingLayerID;
+                glowRenderer.sortingOrder = pieceRenderer.sortingOrder - 1;
+            }
+        }
+
+        if (selectionSquareGlowPrefab != null)
+        {
+            GameObject square = visualSquares[x, y];
+            if (square != null)
+            {
+                currentSquareGlow = Instantiate(selectionSquareGlowPrefab, transform);
+                currentSquareGlow.transform.position = square.transform.position;
+                currentSquareGlow.transform.rotation = Quaternion.identity;
+            }
+        }
+    }
+
+    public void ResetSelectedPiece()
+    {
+        if (currentSelectedPiece != null)
+            currentSelectedPiece.transform.position = originalSelectedPos;
+
+        currentSelectedPiece = null;
+
+        if (currentPieceGlow != null)
+            Destroy(currentPieceGlow);
+        currentPieceGlow = null;
+
+        if (currentSquareGlow != null)
+            Destroy(currentSquareGlow);
+        currentSquareGlow = null;
+    }
+
+    private GameObject GetValidMoveMarker(int index)
+    {
+        if (validMoveMarkerPrefab == null)
+            return null;
+
+        while (validMoveMarkers.Count <= index)
+        {
+            GameObject marker = Instantiate(validMoveMarkerPrefab, transform);
+            marker.SetActive(false);
+            validMoveMarkers.Add(marker);
+        }
+
+        return validMoveMarkers[index];
+    }
+
+    private void ClearValidMoveMarkers()
+    {
+        for (int i = 0; i < validMoveMarkers.Count; i++)
+        {
+            if (validMoveMarkers[i] != null)
+                validMoveMarkers[i].SetActive(false);
         }
     }
 
