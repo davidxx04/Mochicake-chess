@@ -649,7 +649,7 @@ Canvas:
   serializedVersion: 3
   m_RenderMode: 1
   m_Camera: {fileID: 415055027}
-  m_PlaneDistance: 100
+  m_PlaneDistance: 1
   m_PixelPerfect: 0
   m_ReceivesEvents: 1
   m_OverrideSorting: 0
@@ -2717,7 +2717,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7670650235759353220, guid: c21ab267fa3d8c1459aa559ae511301c, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7670650235759353220, guid: c21ab267fa3d8c1459aa559ae511301c, type: 3}
       propertyPath: m_AnchorMin.x
@@ -2725,7 +2725,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7670650235759353220, guid: c21ab267fa3d8c1459aa559ae511301c, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7670650235759353220, guid: c21ab267fa3d8c1459aa559ae511301c, type: 3}
       propertyPath: m_SizeDelta.x
@@ -2765,11 +2765,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7670650235759353220, guid: c21ab267fa3d8c1459aa559ae511301c, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 50
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7670650235759353220, guid: c21ab267fa3d8c1459aa559ae511301c, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -795
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7670650235759353220, guid: c21ab267fa3d8c1459aa559ae511301c, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
